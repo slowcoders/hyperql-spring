@@ -3,12 +3,10 @@ package org.slowcoders.hyperql.jdbc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.Query;
 import org.slowcoders.hyperql.*;
-import org.slowcoders.hyperql.jdbc.output.ArrayRowMapper;
-import org.slowcoders.hyperql.jdbc.output.IdListMapper;
-import org.slowcoders.hyperql.jdbc.output.JdbcResultMapper;
-import org.slowcoders.hyperql.jdbc.output.JsonRowMapper;
+import org.slowcoders.hyperql.jdbc.output.*;
 import org.slowcoders.hyperql.jdbc.storage.BatchUpsert;
 import org.slowcoders.hyperql.jdbc.storage.JdbcSchema;
+import org.slowcoders.hyperql.jdbc.storage.SqlGenerator;
 import org.slowcoders.hyperql.parser.HqlParser;
 import org.slowcoders.hyperql.parser.HyperFilter;
 import org.slowcoders.hyperql.schema.QColumn;
@@ -60,7 +58,11 @@ public abstract class JdbcRepositoryBase<ID> extends HyperRepository<ID> {
     protected JdbcResultMapper<?> createColumnMapRowMapper(JdbcQuery query, OutputFormat outputFormat) {
         switch (outputFormat) {
             case Object:
-                return new JsonRowMapper(query.getResultMappings(), storage.getObjectMapper());
+                if (SqlGenerator.JSON_RS) {
+                    return new JsonRsMapper(query.getResultMappings(), storage.getObjectMapper());
+                } else {
+                    return new JsonRowMapper(query.getResultMappings(), storage.getObjectMapper());
+                }
             default:
                 return new ArrayRowMapper(query.getResultMappings(), null, storage.getObjectMapper());
         }

@@ -16,6 +16,7 @@ import java.util.*;
 
 public abstract class SqlGenerator extends SqlConverter implements QueryGenerator {
 
+    public static final boolean JSON_RS = false;
     private final boolean isNativeQuery;
     private EntityFilter currentNode;
 
@@ -88,23 +89,27 @@ public abstract class SqlGenerator extends SqlConverter implements QueryGenerato
         if (!noAliases) {
             sw.write(isNativeQuery ? " as " : " ").write(where.getMappingAlias());
         }
-        for (QResultMapping fetch : this.resultMappings) {
-            QJoin join = fetch.getEntityJoin();
+        for (QResultMapping mapping : this.resultMappings) {
+            QJoin join = mapping.getEntityJoin();
             if (join == null) continue;
 
-            if (ignoreEmptyFilter && fetch.isEmpty()) continue;
+            if (ignoreEmptyFilter && mapping.isEmpty()) continue;
 
-            String parentAlias = fetch.getParentNode().getMappingAlias();
-            String alias = fetch.getMappingAlias();
+            String parentAlias = mapping.getParentNode().getMappingAlias();
+            String alias = mapping.getMappingAlias();
             if (isNativeQuery) {
-                QJoin associated = join.getAssociativeJoin();
-                writeJoinStatement(join, parentAlias, associated == null ? alias : "p" + alias);
-                if (associated != null) {
-                    writeJoinStatement(associated, "p" + alias, alias);
+                if (JSON_RS && mapping.isArrayNode() && mapping.getEntityJoin() != null) {
+                    // do nothing.
+                } else {
+                    QJoin associated = join.getAssociativeJoin();
+                    writeJoinStatement(join, parentAlias, associated == null ? alias : "p" + alias);
+                    if (associated != null) {
+                        writeJoinStatement(associated, "p" + alias, alias);
+                    }
                 }
             }
             else {
-                sw.write((fetch.getSelectedColumns().size() > 0 || fetch.hasChildMappings()) ? " join fetch " : " join ");
+                sw.write((mapping.getSelectedColumns().size() > 0 || mapping.hasChildMappings()) ? " join fetch " : " join ");
                 sw.write(parentAlias).write('.').write(join.getJsonKey()).write(" ").write(alias).write("\n");
             }
         }
@@ -114,22 +119,29 @@ public abstract class SqlGenerator extends SqlConverter implements QueryGenerato
 //        }
     }
 
-
-    private void writeJoinStatement(QJoin join, String baseAlias, String alias) {
+    private void writeJoinCondition(QJoin join, String baseAlias, String alias) {
         boolean isInverseMapped = join.isInverseMapped();
-        String mediateTable = join.getLinkedSchema().getTableName();
-        sw.write("\nleft join ").write(mediateTable).write(" as ").write(alias).write(" on\n\t");
         for (QColumn fk : join.getJoinConstraint()) {
+            sw.writeln();
             QColumn anchor, linked;
             if (isInverseMapped) {
                 linked = fk; anchor = fk.getJoinedPrimaryColumn();
             } else {
                 anchor = fk; linked = fk.getJoinedPrimaryColumn();
             }
+            sw.write(alias).write(".").write(linked.getPhysicalName());
+            sw.write(" = ");
             sw.write(baseAlias).write(".").write(anchor.getPhysicalName());
-            sw.write(" = ").write(alias).write(".").write(linked.getPhysicalName()).write(" and\n\t");
+            sw.write(" and");
         }
-        sw.shrinkLength(6);
+        sw.shrinkLength(4);
+        sw.writeln();
+    }
+
+    private void writeJoinStatement(QJoin join, String baseAlias, String alias) {
+        String mediateTable = join.getLinkedSchema().getTableName();
+        sw.write("\nleft join ").write(mediateTable).write(" as ").write(alias).write(" on\n\t");
+        writeJoinCondition(join, baseAlias, alias);
     }
 
     public String createCountQuery(HyperFilter where, String[] viewParams) {
@@ -179,19 +191,24 @@ public abstract class SqlGenerator extends SqlConverter implements QueryGenerato
         }
 
         sw.writeln("").writeln(select_cmd);
+        sw.incTab();
         if (!isNativeQuery) {
             sw.write(where.getMappingAlias()).write(',');
         }
         else {
             for (QResultMapping mapping : this.resultMappings) {
-                sw.write('\t');
                 String alias = mapping.getMappingAlias();
-                for (QColumn col : mapping.getSelectedColumns()) {
-                    sw.write(alias).write('.').write(col.getPhysicalName()).write(", ");
+                if (JSON_RS && mapping.isArrayNode() && mapping.getEntityJoin() != null) {
+                    writeJsonSelect(mapping, "t_0");
+                } else {
+                    for (QColumn col : mapping.getSelectedColumns()) {
+                        sw.write(alias).write('.').write(col.getPhysicalName()).write(", ");
+                    }
                 }
                 sw.write('\n');
             }
         }
+        sw.decTab();
         sw.replaceTrailingComma("\n");
         writeFrom(where, tableName, false);
         writeWhere(where);
@@ -201,6 +218,28 @@ public abstract class SqlGenerator extends SqlConverter implements QueryGenerato
 //        }
         String sql = sw.reset();
         return sql;
+    }
+
+    private void writeJsonSelect(QResultMapping mapping, String baseAlias) {
+        String alias = "a" + mapping.getMappingAlias();
+        QJoin join = mapping.getEntityJoin();
+
+        sw.write("(select json_agg(").write(mapping.getMappingAlias()).write(") from (select\n");
+        sw.incTab(); sw.incTab();
+        for (QColumn col : mapping.getSelectedColumns()) {
+            sw.write(alias).write('.').write(col.getPhysicalName()).write(", ");
+        }
+        sw.decTab();
+        sw.replaceTrailingComma("\nfrom ").write(join.getTargetSchema().getTableName()).write(" as ").write(alias);
+        QJoin associated = join.getAssociativeJoin();
+        if (associated != null) {
+            writeJoinStatement(associated, "p" + alias, alias);
+        }
+        sw.replaceTrailingComma("\nwhere ");
+        writeJoinCondition(join, baseAlias, alias);
+        sw.write(") as ").write(mapping.getMappingAlias()).write(") as ").write(join.getJsonKey());
+        sw.decTab();
+        sw.writeln();
     }
 
     private void writeOrderBy(JdbcQuery query, boolean need_joined_result_set_ordering) {
