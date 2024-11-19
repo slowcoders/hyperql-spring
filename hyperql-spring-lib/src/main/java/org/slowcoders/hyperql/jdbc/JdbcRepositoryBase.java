@@ -3,7 +3,10 @@ package org.slowcoders.hyperql.jdbc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.Query;
 import org.slowcoders.hyperql.*;
-import org.slowcoders.hyperql.jdbc.output.*;
+import org.slowcoders.hyperql.jdbc.output.ArrayRowMapper;
+import org.slowcoders.hyperql.jdbc.output.IdListMapper;
+import org.slowcoders.hyperql.jdbc.output.JdbcResultMapper;
+import org.slowcoders.hyperql.jdbc.output.JsonRowMapper;
 import org.slowcoders.hyperql.jdbc.storage.BatchUpsert;
 import org.slowcoders.hyperql.jdbc.storage.JdbcSchema;
 import org.slowcoders.hyperql.jdbc.storage.SqlGenerator;
@@ -58,9 +61,7 @@ public abstract class JdbcRepositoryBase<ID> extends HyperRepository<ID> {
     protected JdbcResultMapper<?> createColumnMapRowMapper(JdbcQuery query, OutputFormat outputFormat) {
         switch (outputFormat) {
             case Object:
-                if (SqlGenerator.JSON_RS) {
-                    return new JsonRsMapper(query.getResultMappings(), storage.getObjectMapper());
-                } else {
+                if (!SqlGenerator.JSON_RS) {
                     return new JsonRowMapper(query.getResultMappings(), storage.getObjectMapper());
                 }
             default:

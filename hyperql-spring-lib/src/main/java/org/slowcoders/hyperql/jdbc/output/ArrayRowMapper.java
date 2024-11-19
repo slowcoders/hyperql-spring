@@ -22,7 +22,7 @@ public class ArrayRowMapper implements JdbcResultMapper<Object[]> {
     private final Properties properties;
     private final ObjectMapper objectMapper;
     private String[] columnNames;
-    private QColumn[] mappedColumns;
+    private boolean[] mappedColumns;
 
     public ArrayRowMapper(List<QResultMapping> rowMappings, Properties properties, ObjectMapper objectMapper) {
         this.resultMappings = rowMappings;
@@ -42,7 +42,7 @@ public class ArrayRowMapper implements JdbcResultMapper<Object[]> {
             Object[] values = new Object[columnCount];
             for (int i = columnNames.length; --i >= 0;) {
                 Object value;
-                if (mappedColumns[i].isJsonNode()) {
+                if (mappedColumns[i]) {
                     value = JsUtil.parseJson(objectMapper, rs.getString(i + 1));
                 } else {
                     value = rs.getObject(i+1);
@@ -67,24 +67,13 @@ public class ArrayRowMapper implements JdbcResultMapper<Object[]> {
         int columnCount = rsmd.getColumnCount();
 
         String[] columnNames = new String[columnCount];
-        QColumn[] mappedColumns = new QColumn[columnCount];
+        boolean[] columnTypes = new boolean[columnCount];
 
-        int idxColumn = 0;
-        for (QResultMapping mapping : resultMappings) {
-            List<QColumn> columns = mapping.getSelectedColumns();
-            if (columns.size() == 0) {
-                continue;
-            }
-            String base = toJsonKey(mapping.getEntityMappingPath());
-            for (QColumn column : columns) {
-                mappedColumns[idxColumn] = column;
-                columnNames[idxColumn++] = toJsonKey(base, column.getJsonKey());
-            }
+        for (int idxColumn = 0; idxColumn < columnCount; idxColumn++) {
+            columnNames[idxColumn] = rsmd.getColumnName(idxColumn + 1);
+            columnTypes[idxColumn] = rsmd.getColumnTypeName(idxColumn + 1).startsWith("json");
         }
-        if (idxColumn != columnCount) {
-            throw new RuntimeException("Something wrong!");
-        }
-        this.mappedColumns = mappedColumns;
+        this.mappedColumns = columnTypes;
         return columnNames;
     }
 

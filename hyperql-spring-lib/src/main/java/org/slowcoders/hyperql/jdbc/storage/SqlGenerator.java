@@ -16,7 +16,7 @@ import java.util.*;
 
 public abstract class SqlGenerator extends SqlConverter implements QueryGenerator {
 
-    public static final boolean JSON_RS = false;
+    public static final boolean JSON_RS = true;
     private final boolean isNativeQuery;
     private EntityFilter currentNode;
 
@@ -122,7 +122,6 @@ public abstract class SqlGenerator extends SqlConverter implements QueryGenerato
     private void writeJoinCondition(QJoin join, String baseAlias, String alias) {
         boolean isInverseMapped = join.isInverseMapped();
         for (QColumn fk : join.getJoinConstraint()) {
-            sw.writeln();
             QColumn anchor, linked;
             if (isInverseMapped) {
                 linked = fk; anchor = fk.getJoinedPrimaryColumn();
@@ -132,10 +131,9 @@ public abstract class SqlGenerator extends SqlConverter implements QueryGenerato
             sw.write(alias).write(".").write(linked.getPhysicalName());
             sw.write(" = ");
             sw.write(baseAlias).write(".").write(anchor.getPhysicalName());
-            sw.write(" and");
+            sw.write("\nand ");
         }
         sw.shrinkLength(4);
-        sw.writeln();
     }
 
     private void writeJoinStatement(QJoin join, String baseAlias, String alias) {
@@ -176,7 +174,7 @@ public abstract class SqlGenerator extends SqlConverter implements QueryGenerato
 
         String tableName = isNativeQuery ? where.getTableExpression(query.getViewParams()) : where.getSchema().getEntityType().getName();
         String select_cmd = (isNativeQuery && !query.isDistinct()) ? "SELECT" : "SELECT DISTINCT";
-        boolean need_complex_pagination = isNativeQuery && query.getLimit() > 0 && needDistinctPagination(where);
+        boolean need_complex_pagination = !JSON_RS && isNativeQuery && query.getLimit() > 0 && needDistinctPagination(where);
         if (need_complex_pagination) {
             sw.write("\nWITH _cte AS (\n"); // WITH _cte AS NOT MATERIALIZED
             sw.incTab();
@@ -200,6 +198,7 @@ public abstract class SqlGenerator extends SqlConverter implements QueryGenerato
                 String alias = mapping.getMappingAlias();
                 if (JSON_RS && mapping.isArrayNode() && mapping.getEntityJoin() != null) {
                     writeJsonSelect(mapping, "t_0");
+                    sw.write(",\n");
                 } else {
                     for (QColumn col : mapping.getSelectedColumns()) {
                         sw.write(alias).write('.').write(col.getPhysicalName()).write(", ");
@@ -233,10 +232,19 @@ public abstract class SqlGenerator extends SqlConverter implements QueryGenerato
         sw.replaceTrailingComma("\nfrom ").write(join.getTargetSchema().getTableName()).write(" as ").write(alias);
         QJoin associated = join.getAssociativeJoin();
         if (associated != null) {
-            writeJoinStatement(associated, "p" + alias, alias);
+            String mediateTable = associated.getBaseSchema().getTableName();
+            sw.write("\nleft join ").write(mediateTable).write(" as ").writeln("p" + alias);
+            sw.incTab();
+            sw.write(" on ");
+            writeJoinCondition(associated, "p" + alias, alias);
+            sw.decTab();
         }
         sw.replaceTrailingComma("\nwhere ");
-        writeJoinCondition(join, baseAlias, alias);
+        if (associated == null) {
+            writeJoinCondition(join, baseAlias, alias);
+        } else {
+            writeJoinCondition(join, baseAlias, "p" + alias);
+        }
         sw.write(") as ").write(mapping.getMappingAlias()).write(") as ").write(join.getJsonKey());
         sw.decTab();
         sw.writeln();
