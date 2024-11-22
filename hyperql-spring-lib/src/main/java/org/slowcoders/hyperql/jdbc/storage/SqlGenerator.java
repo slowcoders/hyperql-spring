@@ -4,12 +4,14 @@ import org.slowcoders.hyperql.EntitySet;
 import org.slowcoders.hyperql.jdbc.JdbcQuery;
 import org.slowcoders.hyperql.HyperQuery;
 import org.slowcoders.hyperql.jdbc.SqlWriter;
+import org.slowcoders.hyperql.parser.TableFilter;
 import org.slowcoders.hyperql.schema.QJoin;
 import org.slowcoders.hyperql.schema.QResultMapping;
 import org.slowcoders.hyperql.js.JsType;
 import org.slowcoders.hyperql.schema.*;
 import org.slowcoders.hyperql.parser.HyperFilter;
 import org.slowcoders.hyperql.parser.EntityFilter;
+import org.slowcoders.hyperql.util.KVEntity;
 import org.springframework.data.domain.Sort;
 
 import java.util.*;
@@ -84,10 +86,30 @@ public abstract class SqlGenerator extends SqlConverter implements QueryGenerato
         }
     }
 
+    private void writeJoin2(TableFilter filter) {
+        String parentAlias = filter.getMappingAlias();
+        for (var subFilter : filter.getJoinedFilters()) {
+            if (subFilter.isArrayNode()) continue;
+            String alias = subFilter.getMappingAlias();
+            QJoin join = subFilter.getEntityJoin();
+            QJoin associated = join.getAssociativeJoin();
+            writeJoinStatement(join, parentAlias, associated == null ? alias : "p" + alias);
+            if (associated != null) {
+                writeJoinStatement(associated, "p" + alias, alias);
+            }
+            writeJoin2(subFilter);
+        }
+    }
+
+
     private void writeFrom(HyperFilter where, String tableName, boolean ignoreEmptyFilter) {
         sw.write("FROM ").write(tableName);
         if (!noAliases) {
             sw.write(isNativeQuery ? " as " : " ").write(where.getMappingAlias());
+        }
+        if (JSON_RS) {
+            writeJoin2(where);
+            return;
         }
         for (QResultMapping mapping : this.resultMappings) {
             QJoin join = mapping.getEntityJoin();
@@ -168,12 +190,17 @@ public abstract class SqlGenerator extends SqlConverter implements QueryGenerato
     }
 
     public String createSelectQuery(JdbcQuery query) {
+        if (JSON_RS && isNativeQuery) {
+            return createJsonSelectQuery(query);
+        }
+
         sw.reset();
         this.resultMappings = query.getResultMappings();
         HyperFilter where = query.getFilter();
 
         String tableName = isNativeQuery ? where.getTableExpression(query.getViewParams()) : where.getSchema().getEntityType().getName();
         String select_cmd = (isNativeQuery && !query.isDistinct()) ? "SELECT" : "SELECT DISTINCT";
+
         boolean need_complex_pagination = !JSON_RS && isNativeQuery && query.getLimit() > 0 && needDistinctPagination(where);
         if (need_complex_pagination) {
             sw.write("\nWITH _cte AS (\n"); // WITH _cte AS NOT MATERIALIZED
@@ -196,13 +223,8 @@ public abstract class SqlGenerator extends SqlConverter implements QueryGenerato
         else {
             for (QResultMapping mapping : this.resultMappings) {
                 String alias = mapping.getMappingAlias();
-                if (JSON_RS && mapping.isArrayNode() && mapping.getEntityJoin() != null) {
-                    writeJsonSelect(mapping, "t_0");
-                    sw.write(",\n");
-                } else {
-                    for (QColumn col : mapping.getSelectedColumns()) {
-                        sw.write(alias).write('.').write(col.getPhysicalName()).write(", ");
-                    }
+                for (QColumn col : mapping.getSelectedColumns()) {
+                    sw.write(alias).write('.').write(col.getPhysicalName()).write(", ");
                 }
                 sw.write('\n');
             }
@@ -219,17 +241,61 @@ public abstract class SqlGenerator extends SqlConverter implements QueryGenerato
         return sql;
     }
 
-    private void writeJsonSelect(QResultMapping mapping, String baseAlias) {
-        String alias = "a" + mapping.getMappingAlias();
+
+    private String createJsonSelectQuery(JdbcQuery query) {
+        sw.reset();
+        HyperFilter where = query.getFilter();
+
+        String tableName = isNativeQuery ? where.getTableExpression(query.getViewParams()) : where.getSchema().getEntityType().getName();
+        String select_cmd = (isNativeQuery && !query.isDistinct()) ? "SELECT" : "SELECT DISTINCT";
+
+        sw.writeln().writeln(select_cmd);
+        sw.incTab();
+        var columnNames = writeJsonSelectColumns(where, where.getMappingAlias());
+        where.setColumnNameMappings(columnNames);
+
+        writeFrom(where, tableName, false);
+        writeWhere(where);
+        writeOrderBy(query, false);//where.hasArrayDescendantNode());
+//        if (!need_complex_pagination && isNativeQuery) {
+//            writePagination(query);
+//        }
+        String sql = sw.reset();
+        return sql;
+    }
+
+    private ArrayList<Object> writeJsonSelectColumns(TableFilter filter, String tableAlias) {
+        ArrayList<Object> columnNames = new ArrayList<>();
+        for (QColumn col : filter.getSelectedColumns()) {
+            sw.write(tableAlias).write('.').write(col.getPhysicalName()).writeln(",");
+            columnNames.add(col.getPhysicalName());
+        }
+        for (var subFilter : filter.getJoinedFilters()) {
+            if (subFilter.isArrayNode()) {
+                var subColumnMap = writeJsonSelect(subFilter, tableAlias);
+                columnNames.add(subColumnMap);
+            } else {
+                sw.write("json_build_array(\n");
+                sw.incTab();
+                var columns = writeJsonSelectColumns(subFilter, subFilter.getMappingAlias());
+                var mapping = KVEntity.of("name", subFilter.getEntityJoin().getJsonKey());
+                mapping.put("columnNames", columns);
+                columnNames.add(mapping);
+                sw.decTab().writeln(")");
+            }
+        }
+        return columnNames;
+    }
+
+    private KVEntity writeJsonSelect(TableFilter mapping, String baseAlias) {
+        String alias = mapping.getMappingAlias();
         QJoin join = mapping.getEntityJoin();
 
-        sw.write("(select json_agg(").write(mapping.getMappingAlias()).write(") from (select\n");
+        sw.write("(select json_agg(agg_").write(alias).write(".row) from (select json_build_array(\n");
         sw.incTab(); sw.incTab();
-        for (QColumn col : mapping.getSelectedColumns()) {
-            sw.write(alias).write('.').write(col.getPhysicalName()).write(", ");
-        }
+        var columnNames = writeJsonSelectColumns(mapping, alias);
         sw.decTab();
-        sw.replaceTrailingComma("\nfrom ").write(join.getTargetSchema().getTableName()).write(" as ").write(alias);
+        sw.replaceTrailingComma(") as row from ").write(join.getTargetSchema().getTableName()).write(" as ").write(alias);
         QJoin associated = join.getAssociativeJoin();
         if (associated != null) {
             String mediateTable = associated.getBaseSchema().getTableName();
@@ -239,15 +305,19 @@ public abstract class SqlGenerator extends SqlConverter implements QueryGenerato
             writeJoinCondition(associated, "p" + alias, alias);
             sw.decTab();
         }
+        this.writeJoin2(mapping);
         sw.replaceTrailingComma("\nwhere ");
         if (associated == null) {
             writeJoinCondition(join, baseAlias, alias);
         } else {
             writeJoinCondition(join, baseAlias, "p" + alias);
         }
-        sw.write(") as ").write(mapping.getMappingAlias()).write(") as ").write(join.getJsonKey());
         sw.decTab();
+        sw.write(") as agg_").write(alias).write(")");
         sw.writeln();
+        var columnNameMap = KVEntity.of("name", join.getJsonKey());
+        columnNameMap.add("columnNames", columnNames);
+        return columnNameMap;
     }
 
     private void writeOrderBy(JdbcQuery query, boolean need_joined_result_set_ordering) {

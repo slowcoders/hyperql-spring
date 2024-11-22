@@ -14,6 +14,7 @@ import org.slowcoders.hyperql.parser.HqlParser;
 import org.slowcoders.hyperql.parser.HyperFilter;
 import org.slowcoders.hyperql.schema.QColumn;
 import org.slowcoders.hyperql.schema.QSchema;
+import org.slowcoders.hyperql.util.KVEntity;
 import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -65,7 +66,7 @@ public abstract class JdbcRepositoryBase<ID> extends HyperRepository<ID> {
                     return new JsonRowMapper(query.getResultMappings(), storage.getObjectMapper());
                 }
             default:
-                return new ArrayRowMapper(query.getResultMappings(), null, storage.getObjectMapper());
+                return new ArrayRowMapper(query.getResultMappings(), query, storage.getObjectMapper());
         }
     }
 

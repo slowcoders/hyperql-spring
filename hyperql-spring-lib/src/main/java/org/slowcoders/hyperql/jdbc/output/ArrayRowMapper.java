@@ -1,11 +1,9 @@
 package org.slowcoders.hyperql.jdbc.output;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slowcoders.hyperql.RestTemplate;
-import org.slowcoders.hyperql.js.JsType;
+import org.slowcoders.hyperql.jdbc.JdbcQuery;
 import org.slowcoders.hyperql.js.JsUtil;
-import org.slowcoders.hyperql.schema.QColumn;
 import org.slowcoders.hyperql.schema.QResultMapping;
 import org.springframework.dao.DataAccessException;
 
@@ -14,19 +12,17 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Properties;
 
 public class ArrayRowMapper implements JdbcResultMapper<Object[]> {
     private final List<QResultMapping> resultMappings;
-    private final Properties properties;
+    private final JdbcQuery query;
     private final ObjectMapper objectMapper;
     private String[] columnNames;
     private boolean[] mappedColumns;
 
-    public ArrayRowMapper(List<QResultMapping> rowMappings, Properties properties, ObjectMapper objectMapper) {
+    public ArrayRowMapper(List<QResultMapping> rowMappings, JdbcQuery query, ObjectMapper objectMapper) {
         this.resultMappings = rowMappings;
-        this.properties = properties;
+        this.query = query;
         this.objectMapper = objectMapper;
     }
 
@@ -47,32 +43,28 @@ public class ArrayRowMapper implements JdbcResultMapper<Object[]> {
                 } else {
                     value = rs.getObject(i+1);
                     /*
-                                    if (value != null) {
-                    JsType type = JsType.of(value.getClass());
-                    if (type == JsType.Object) {
-                        try {
-                            value = objectMapper.readValue(value.toString(), JsonNode.class);
-                        } catch (JsonProcessingException e) {
-                            // mariadb longtext 인 경우;
+                    if (value != null) {
+                        JsType type = JsType.of(value.getClass());
+                        if (type == JsType.Object) {
+                            try {
+                                value = objectMapper.readValue(value.toString(), JsonNode.class);
+                            } catch (JsonProcessingException e) {
+                                // mariadb longtext 인 경우;
+                            }
                         }
                     }
-                }
-
-                    */
+                    //*/
                 }
                 values[i] = value;
             }
             rows.add(values);
         }
-        if (this.properties != null) {
-            this.properties.put("columnNames", columnNames);
-        }
         return rows;
     }
 
-    public String[] getColumnNames() {
-        return this.columnNames;
-    }
+//    public String[] getColumnNames() {
+//        return this.columnNames;
+//    }
 
     private String[] initMappedColumns(ResultSet rs) throws SQLException {
 
@@ -106,6 +98,6 @@ public class ArrayRowMapper implements JdbcResultMapper<Object[]> {
 
     @Override
     public void setOutputMetadata(RestTemplate.Response response) {
-        response.setProperty("columnNames", this.columnNames);
+        response.setProperty("columnNames", this.query.getFilter().getColumnNameMappings());
     }
 }

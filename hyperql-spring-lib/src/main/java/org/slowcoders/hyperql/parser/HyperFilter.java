@@ -19,6 +19,7 @@ public class HyperFilter extends TableFilter {
     private boolean enableJPQL;
 
     private static HqlParser parser = new HqlParser(new ObjectMapper());
+    private ArrayList<Object> columnNameMappings;
 
     public HyperFilter(QSchema schema) {
         super(schema, "t_0");
@@ -168,4 +169,11 @@ public class HyperFilter extends TableFilter {
         return enableJPQL ? getSchema().getEntityType() : null;
     }
 
+    public void setColumnNameMappings(ArrayList<Object> columnNames) {
+        this.columnNameMappings = columnNames;
+    }
+
+    public ArrayList<Object> getColumnNameMappings() {
+        return columnNameMappings;
+    }
 }

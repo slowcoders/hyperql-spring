@@ -8,7 +8,7 @@ import org.slowcoders.hyperql.schema.QSchema;
 
 import java.util.*;
 
-class TableFilter extends EntityFilter implements QResultMapping {
+public class TableFilter extends EntityFilter implements QResultMapping {
     private final QSchema schema;
     private final QJoin join;
     private final String mappingAlias;
@@ -39,7 +39,7 @@ class TableFilter extends EntityFilter implements QResultMapping {
         return schema;
     }
 
-    TableFilter asTableFilter() {
+    public TableFilter asTableFilter() {
         return this;
     }
 
@@ -158,6 +158,17 @@ class TableFilter extends EntityFilter implements QResultMapping {
     @Override
     public boolean hasArrayDescendantNode() {
         return this.hasArrayDescendant;
+    }
+
+    public List<TableFilter> getJoinedFilters() {
+        var list = new ArrayList<TableFilter>();
+        for (EntityFilter q : subFilters.values()) {
+            TableFilter table = q.asTableFilter();
+            if (table != null) {
+                list.add(table);
+            }
+        }
+        return list;
     }
 
     protected void gatherColumnMappings(List<QResultMapping> columnGroupMappings) {

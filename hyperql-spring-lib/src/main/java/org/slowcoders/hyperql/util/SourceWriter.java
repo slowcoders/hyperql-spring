@@ -58,8 +58,9 @@ public class SourceWriter<Self extends SourceWriter> {
         return (Self)this;
     }
 
-    public void writeln() {
+    public Self writeln() {
         sb.append('\n');
+        return (Self)this;
     }
 
     public Self writeF(String format, String... params) {
