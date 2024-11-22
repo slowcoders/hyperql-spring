@@ -36,7 +36,7 @@ public interface Predicate extends Expression {
 
         @Override
         public void accept(PredicateVisitor sb) {
-            sb.visitContains(column, operator, value);
+            sb.visitCompareArray(column, operator, value);
         }
     }
 
@@ -53,9 +53,7 @@ public interface Predicate extends Expression {
 
         @Override
         public void accept(PredicateVisitor sb) {
-            if (operator == HqlOp.CONTAINS) {
-                sb.visitContains(column, operator, (Collection) value);
-            } else if (value == null) {
+            if (value == null) {
                 sb.visitCompareNull(column, operator);
             } else {
                 sb.visitPredicate(column, operator, value);

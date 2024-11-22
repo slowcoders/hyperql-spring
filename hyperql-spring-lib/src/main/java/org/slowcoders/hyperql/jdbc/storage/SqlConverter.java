@@ -50,7 +50,7 @@ public abstract class SqlConverter implements PredicateVisitor {
     }
 
     @Override
-    public void visitContains(QColumn column, HqlOp operator, Collection values) {
+    public void visitCompareArray(QColumn column, HqlOp operator, Collection values) {
         throw new RuntimeException("Not implemted");
     }
 

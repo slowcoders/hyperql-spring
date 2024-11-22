@@ -63,8 +63,13 @@ export default {
           icon: "fa fa-file-alt"
         },
         {
-          href: "/form/form",
+          href: "/advanced/form",
           title: "Simple form integration",
+          icon: "fa fa-file-alt"
+        },
+        {
+          href: "/advanced/view",
+          title: "Virtual View integration",
           icon: "fa fa-file-alt"
         },
 

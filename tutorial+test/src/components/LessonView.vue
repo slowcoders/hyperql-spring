@@ -7,17 +7,18 @@
         </td><td class="input-column">
           <b-form-select v-model="selectedStorage"
                          :options="storageNames"
+                         :disabled="disableTableSelector"
                          @input="onTableChanged()">
           </b-form-select>
         </td><td>
-<!--          <label class="form-label">Table: </label>-->
-<!--        </td><td class="input-column">-->
-<!--          <b-form-select v-model="selectedTable"-->
-<!--                         :options="tableNames"-->
-<!--                         :disabled="!showSchemaInfo"-->
-<!--                         @input="onTableChanged()">-->
-<!--          </b-form-select>-->
-<!--        </td><td>-->
+         <label class="form-label">Table: </label>
+       </td><td class="input-column">
+         <b-form-select v-model="selectedTable"
+                        :options="tableNames"
+                        :disabled="disableTableSelector"
+                        @input="onTableChanged()">
+         </b-form-select>
+        </td><td>
           <label class="form-label">Select: </label>
         </td><td class="input-column">
           <b-dropdown text="Columns" ref="dropDown">
@@ -114,23 +115,25 @@ const sampleTables = [
   "book",
   "author",
   "book_order",
-  "customer_friend_link"
+  "customer_friend_link",
+  "best_seller",
 ]
 
 export default {
   props : {
     js_code : String,
-    enable_table_select: Boolean,
+    target_table: Boolean,
   },
 
   components: { CodeMirror },
   data() {
     return {
-      showSchemaInfo: this.enable_table_select,
+      showSchemaInfo: false,
       storageNames: sampleStorages,
       selectedStorage: sampleStorages[0],
       tableNames: sampleTables,
-      selectedTable: sampleTables[0],
+      selectedTable: this.target_table || sampleTables[0],
+      disableTableSelector: !!this.target_table,
       schemaInfo: '',
       selectableColumns: [],
       selectedColumns: [],
@@ -170,6 +173,8 @@ export default {
   mounted() {
     this.codeView = this.$refs.codeView.cminstance;
     this.resultView = this.$refs.resultView.cminstance;
+    this.selectedTable = this.target_table || sampleTables[0];
+    this.disableTableSelector = !!this.target_table
     setTimeout(this.onTableChanged, 10);
   },
 
@@ -238,9 +243,11 @@ ${vm.schemaInfo}`
           sortOptions.push("-" + column);
           selectableColumns.push({value: column, text: column })
         }
-        for (const column of res.data.references) {
-          const skey = column + ".*"
-          selectableColumns.push({value: skey, text: skey, is_ref: true })
+        if (res.data.references?.length > 0) {
+          for (const column of res.data.references) {
+            const skey = column + ".*"
+            selectableColumns.push({value: skey, text: skey, is_ref: true })
+          }
         }
         vm.sortOptions = sortOptions;
         vm.selectableColumns = selectableColumns;

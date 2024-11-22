@@ -12,7 +12,7 @@ public interface PredicateVisitor {
 
     void visitMatchAny(QColumn column, HqlOp operator, Collection values);
 
-    void visitContains(QColumn column, HqlOp operator, Collection values);
+    void visitCompareArray(QColumn column, HqlOp operator, Collection values);
 
     void visitCompareNull(QColumn column, HqlOp operator);
 

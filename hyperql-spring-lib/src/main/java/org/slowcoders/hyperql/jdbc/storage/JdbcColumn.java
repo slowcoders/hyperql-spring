@@ -112,7 +112,7 @@ public class JdbcColumn extends QColumn {
     private String resolveFieldName() {
         StringBuilder sb = new StringBuilder();
         QColumn col = this;
-        // TODO 2024.0930 check to disable scoped name generation.
+        // if (false) TODO 2024.0930 check to disable scoped name generation.
         for (QColumn joinedPk; (joinedPk = col.getJoinedPrimaryColumn()) != null; col = joinedPk) {
             String token = QJoin.resolveForeignKeyPropertyName(col);
             sb.append(token).append('.');

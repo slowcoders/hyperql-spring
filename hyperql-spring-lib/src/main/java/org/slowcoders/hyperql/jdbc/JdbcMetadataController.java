@@ -78,13 +78,6 @@ public abstract class JdbcMetadataController {
         if (type == SchemaType.Simple) {
             source = JsUtil.getSimpleSchema(schema, false);
         }
-        else if (type == SchemaType.FormModel) {
-            source = JsUtil.createJsonModel(schema);
-//            String join = JsUtil.createJoinJQL(schema);
-//            StringBuilder sb = new StringBuilder();
-//            sb.append(source).append("\n\n").append(join);
-//            source = sb.toString();
-        }
         else if (type == SchemaType.Javascript) {
             source = JsUtil.createJsSchema(schema);
             String join = JsUtil.createJoinJQL(schema);
@@ -159,6 +152,6 @@ public abstract class JdbcMetadataController {
         Simple,
         Javascript,
         SpringJPA,
-        FormModel
+        // FormModel
     }
 }

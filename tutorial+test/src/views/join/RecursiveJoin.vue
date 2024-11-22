@@ -2,7 +2,7 @@
 <template>
   <LessonView
       :js_code="code"
-      :enable_table_select="false">
+      target_table="customer">
     <template v-slot:description>
       <H5> Recursive 검색 </H5>
       <div class="details">

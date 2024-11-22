@@ -171,7 +171,8 @@ public class JdbcStorage extends HyperStorage {
                     VirtualSchema schema = (VirtualSchema)schemaMap.get(tableName);
                     if (schema == null) {
                         schema = new VirtualSchema(JdbcStorage.this, tableName, filter, defaultFilterValues);
-                        jdbcSchemaLoader.initVirtualSchema(conn, schema, Arrays.asList(primaryKeys));
+                        var pks = primaryKeys != null ? Arrays.asList(primaryKeys) : (List<String>)(List)Collections.emptyList();
+                        jdbcSchemaLoader.initVirtualSchema(conn, schema, pks);
                         schemaMap.put(tableName, schema);
                     }
                     return schema;

@@ -2,7 +2,7 @@
 <template>
   <LessonView
       :js_code="code"
-      :enable_table_select="false">
+      target_table="customer">
     <template v-slot:description>
       <H5> 검색 조건의 And 결합 </H5>
       <div class="details">

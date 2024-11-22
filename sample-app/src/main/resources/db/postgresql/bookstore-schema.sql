@@ -10,6 +10,7 @@ create table if not exists bookstore.author
 );
 alter table bookstore.author owner to hql_demo;
 
+--------------------------------------------------------
 create table if not exists bookstore.customer
 (
     id  bigint not null
@@ -46,11 +47,22 @@ create table if not exists bookstore.book
     author_id bigint
         constraint fk_author_id_2_pk_author__id
             references bookstore.author,
+--     publisher_id bigint
+--         constraint fk_publisher_id_2_pk_publisher__id
+--             references bookstore.publisher,
     price real
 );
 alter table bookstore.book owner to hql_demo;
 
 --------------------------------------------------------
+-- create table if not exists bookstore.publisher
+-- (
+--     id  bigint not null
+--         constraint publisher_pkey primary key,
+--     name varchar(255) not null,
+--     memo jsonb
+-- );
+-- alter table bookstore.publisher owner to hql_demo;
 
 --------------------------------------------------------
 create table if not exists bookstore.book_order

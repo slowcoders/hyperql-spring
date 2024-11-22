@@ -46,6 +46,19 @@ public class ArrayRowMapper implements JdbcResultMapper<Object[]> {
                     value = JsUtil.parseJson(objectMapper, rs.getString(i + 1));
                 } else {
                     value = rs.getObject(i+1);
+                    /*
+                                    if (value != null) {
+                    JsType type = JsType.of(value.getClass());
+                    if (type == JsType.Object) {
+                        try {
+                            value = objectMapper.readValue(value.toString(), JsonNode.class);
+                        } catch (JsonProcessingException e) {
+                            // mariadb longtext 인 경우;
+                        }
+                    }
+                }
+
+                    */
                 }
                 values[i] = value;
             }

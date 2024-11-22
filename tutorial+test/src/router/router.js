@@ -9,7 +9,8 @@ import RecursiveJoin from "@/views/join/RecursiveJoin";
 import JsonSearch from "@/views/join/JsonSearch";
 import ExternalLinks from "@/views/ExternalLinks";
 import Introduction from "@/views/Introduction";
-import SimpleForm from "@/views/form/SimpleForm";
+import SimpleForm from "@/views/advanced/SimpleForm";
+import VirtualView from "@/views/advanced/VirtualView.vue";
 
 const router = createRouter({
     history: createWebHashHistory(),
@@ -51,8 +52,12 @@ const router = createRouter({
             component: JsonSearch,
         },
         {
-            path: '/form/form',
+            path: '/advanced/form',
             component: SimpleForm,
+        },
+        {
+            path: '/advanced/view',
+            component: VirtualView,
         },
         {
             path: '/external',

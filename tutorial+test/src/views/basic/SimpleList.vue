@@ -2,7 +2,7 @@
 <template>
   <LessonView
       :js_code="code"
-      :enable_table_select="false">
+      target_table="customer">
     <template v-slot:description>
       <div class="details">
         <h5> Select: 검색 결과 계층적 선별 </h5>

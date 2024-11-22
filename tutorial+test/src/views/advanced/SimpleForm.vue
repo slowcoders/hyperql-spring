@@ -155,10 +155,15 @@ let book_columns = [
       value: 'id',
       label: 'name'
   }),
+  /*HqlForm.select('publisher.id', "출판사", {
+      table: 'publisher',
+      value: 'id',
+      label: 'name'
+  }),*/
   HqlForm.text('price', "가격"),
 ]
 
-let autor_columns = [
+let author_columns = [
     HqlForm.number('id', "아이디"),
     HqlForm.text('name', "이름"),
     // HqlForm.text('profile.hometown', "출생지"),
@@ -188,7 +193,7 @@ let order_columns = [
 
 const formSchema = {
   book: book_columns,
-  author: autor_columns,
+  author: author_columns,
   book_order: order_columns,
   customer: customer_columns
 };

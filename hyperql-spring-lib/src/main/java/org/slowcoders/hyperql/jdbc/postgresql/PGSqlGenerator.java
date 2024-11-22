@@ -118,7 +118,7 @@ public class PGSqlGenerator extends SqlGenerator {
     }
 
     @Override
-    public void visitContains(QColumn column, HqlOp operator, Collection values) {
+    public void visitCompareArray(QColumn column, HqlOp operator, Collection values) {
         writeQualifiedColumnName(column, values);
         String op = toSqlExpression(operator);
         sw.write(op);
