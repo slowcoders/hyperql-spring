@@ -19,6 +19,7 @@ import java.util.*;
 public abstract class SqlGenerator extends SqlConverter implements QueryGenerator {
 
     public static final boolean JSON_RS = true;
+    private static final boolean DEEP_COLUMN_MAP = false;
     private final boolean isNativeQuery;
     private EntityFilter currentNode;
 
@@ -241,7 +242,6 @@ public abstract class SqlGenerator extends SqlConverter implements QueryGenerato
         return sql;
     }
 
-
     private String createJsonSelectQuery(JdbcQuery query) {
         sw.reset();
         HyperFilter where = query.getFilter();
@@ -251,7 +251,14 @@ public abstract class SqlGenerator extends SqlConverter implements QueryGenerato
 
         sw.writeln().writeln(select_cmd);
         sw.incTab();
-        var columnNames = writeJsonSelectColumns(where, where.getMappingAlias());
+        ArrayList<Object> columnNames;
+        if (DEEP_COLUMN_MAP) {
+            columnNames = writeJsonSelectColumns_deep(where, where.getMappingAlias());
+        } else {
+            columnNames = new ArrayList<>();
+            writeJsonSelectColumns(where, where.getMappingAlias(), columnNames, "");
+        }
+
         where.setColumnNameMappings(columnNames);
 
         writeFrom(where, tableName, false);
@@ -264,7 +271,23 @@ public abstract class SqlGenerator extends SqlConverter implements QueryGenerato
         return sql;
     }
 
-    private ArrayList<Object> writeJsonSelectColumns(TableFilter filter, String tableAlias) {
+    private void writeJsonSelectColumns(TableFilter filter, String tableAlias, ArrayList<Object> columnNames, String jsonPath) {
+        for (QColumn col : filter.getSelectedColumns()) {
+            sw.write(tableAlias).write('.').write(col.getPhysicalName()).writeln(",");
+            columnNames.add(jsonPath + col.getPhysicalName());
+        }
+        for (var subFilter : filter.getJoinedFilters()) {
+            if (subFilter.isArrayNode()) {
+                var subColumnMap = writeJsonSelect(subFilter, tableAlias, jsonPath);
+                columnNames.add(subColumnMap);
+            } else {
+                jsonPath += subFilter.getEntityJoin().getJsonKey() + ".";
+                writeJsonSelectColumns(subFilter, subFilter.getMappingAlias(), columnNames, jsonPath);
+            }
+        }
+    }
+
+    private ArrayList<Object> writeJsonSelectColumns_deep(TableFilter filter, String tableAlias) {
         ArrayList<Object> columnNames = new ArrayList<>();
         for (QColumn col : filter.getSelectedColumns()) {
             sw.write(tableAlias).write('.').write(col.getPhysicalName()).writeln(",");
@@ -272,14 +295,13 @@ public abstract class SqlGenerator extends SqlConverter implements QueryGenerato
         }
         for (var subFilter : filter.getJoinedFilters()) {
             if (subFilter.isArrayNode()) {
-                var subColumnMap = writeJsonSelect(subFilter, tableAlias);
+                var subColumnMap = writeJsonSelect(subFilter, tableAlias, "");
                 columnNames.add(subColumnMap);
             } else {
                 sw.write("json_build_array(\n");
                 sw.incTab();
-                var columns = writeJsonSelectColumns(subFilter, subFilter.getMappingAlias());
-                var mapping = KVEntity.of("name", subFilter.getEntityJoin().getJsonKey());
-                mapping.put("columnNames", columns);
+                var columns = writeJsonSelectColumns_deep(subFilter, subFilter.getMappingAlias());
+                var mapping = KVEntity.of(subFilter.getEntityJoin().getJsonKey(), columns);
                 columnNames.add(mapping);
                 sw.decTab().writeln(")");
             }
@@ -287,13 +309,20 @@ public abstract class SqlGenerator extends SqlConverter implements QueryGenerato
         return columnNames;
     }
 
-    private KVEntity writeJsonSelect(TableFilter mapping, String baseAlias) {
+    private KVEntity writeJsonSelect(TableFilter mapping, String baseAlias, String jsonPath) {
         String alias = mapping.getMappingAlias();
         QJoin join = mapping.getEntityJoin();
 
         sw.write("(select json_agg(agg_").write(alias).write(".row) from (select json_build_array(\n");
         sw.incTab(); sw.incTab();
-        var columnNames = writeJsonSelectColumns(mapping, alias);
+
+        ArrayList<Object> columnNames;
+        if (DEEP_COLUMN_MAP) {
+            columnNames = writeJsonSelectColumns_deep(mapping, mapping.getMappingAlias());
+        } else {
+            columnNames = new ArrayList<>();
+            writeJsonSelectColumns(mapping, mapping.getMappingAlias(), columnNames, "");
+        }
         sw.decTab();
         sw.replaceTrailingComma(") as row from ").write(join.getTargetSchema().getTableName()).write(" as ").write(alias);
         QJoin associated = join.getAssociativeJoin();
@@ -315,8 +344,7 @@ public abstract class SqlGenerator extends SqlConverter implements QueryGenerato
         sw.decTab();
         sw.write(") as agg_").write(alias).write(")");
         sw.writeln();
-        var columnNameMap = KVEntity.of("name", join.getJsonKey());
-        columnNameMap.add("columnNames", columnNames);
+        var columnNameMap = KVEntity.of(jsonPath + join.getJsonKey(), columnNames);
         return columnNameMap;
     }
 
