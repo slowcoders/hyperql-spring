@@ -32,6 +32,18 @@ const router = createBrowserRouter([
           Component: (await import('@/pages/tasks')).default,
         }),
       },
+      // {
+      //   path: 'lesson',
+      //   lazy: async () => ({
+      //     Component: (await import('@/pages/simpleList/LessonView')),
+      //   }),
+      // },
+      {
+        path: 'list',
+        lazy: async () => ({
+          Component: (await import('@/pages/simpleList')).default,
+        }),
+      },
     ],
   },
 

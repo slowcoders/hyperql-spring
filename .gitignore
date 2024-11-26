@@ -15,3 +15,4 @@ sample-app/out
 db/data
 tutorial+test/node_modules
 node_modules
+tutorial2/.vite

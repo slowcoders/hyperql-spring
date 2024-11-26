@@ -27,4 +27,10 @@ export const sidelinks: SideLink[] = [
     href: '/tasks',
     icon: <IconChecklist size={18} />,
   },
+  {
+    title: 'sidebar.list',
+    label: '4',
+    href: '/list',
+    icon: <IconChecklist size={18} />,
+  },
 ]

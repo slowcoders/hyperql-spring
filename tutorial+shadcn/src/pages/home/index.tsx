@@ -1,8 +1,11 @@
+import { Layout } from "@/components/custom/layout";
+
 export default function Home() {
   return (
-    <div className="hello">
+    <Layout>
+      <Layout.Body>
         <br/>
-        <h3>Hyper Query Language(HyperQL)</h3>
+        <h3 className="scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl">Hyper Query Language(HyperQL)</h3>
         <br/>
           HyperQL 은 계층적 연결 구조를 가진 데이터의 검색을 위한 쿼리 언어이다.
         <p/>
@@ -31,11 +34,12 @@ export default function Home() {
           <code>
             curl -X 'POST' 'http://localhost:7007/api/hql/bookstore/customer/find' \<br />
             -H 'Content-Type: application/json' \<br />
-            -d '\&#123 "name@like": "Luke%" &#125'
+            -d '&#123; "name@like": "Luke%" &#125;'
           </code>
         </div>
         <p/>
         <br/>
-      </div>
+      </Layout.Body>
+    </Layout>
   )
 }

@@ -63,6 +63,10 @@ export default {
   		}
   	}
   },
+  corePlugins: {
+	// 아래 내용을 추가해야만, default html tag style 을 사용할 수 있다.
+	preflight: false,
+  },
   plugins: [require("tailwindcss-animate")],
 }
 
