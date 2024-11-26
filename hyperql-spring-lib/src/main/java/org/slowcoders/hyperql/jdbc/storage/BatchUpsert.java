@@ -21,6 +21,7 @@ public class BatchUpsert<ID> implements BatchPreparedStatementSetterWithKeyHolde
     private final String sql;
     private final QSchema schema;
     private List<Map<String, Object>> generatedKeys;
+    private static final boolean USE_FLAT_KEY = false;
 
     private static ObjectMapper objectMapper = new ObjectMapper();
 
@@ -28,15 +29,33 @@ public class BatchUpsert<ID> implements BatchPreparedStatementSetterWithKeyHolde
         QueryGenerator gen = schema.getStorage().createQueryGenerator();
         List<QColumn> columns = schema.getWritableColumns();
         this.entities = entities.toArray(new Map[entities.size()]);
+        this.schema = schema;
         if (this.entities.length == 1) {
             columns = new ArrayList<>();
-            for (String key : this.entities[0].keySet()) {
-                columns.add((JdbcColumn) schema.getColumn(key));
+            if (USE_FLAT_KEY) {
+                for (String key : this.entities[0].keySet()) {
+                    columns.add((JdbcColumn) schema.getColumn(key));
+                }
+            } else {
+                extractMappedColumn(columns, this.entities[0], "");
             }
         }
         this.sql = gen.prepareBatchInsertStatement(schema, (List)columns, insertPolicy);
-        this.schema = schema;
         this.columns = columns;
+    }
+
+    private void extractMappedColumn(List<QColumn> columns, Map<String, Object> columnMap, String base_key) {
+        for (String key : columnMap.keySet()) {
+            Object value = columnMap.get(key);
+            if (value instanceof Map) {
+                QColumn col = schema.findColumn(base_key + key);
+                if (col == null) {
+                    extractMappedColumn(columns, (Map<String, Object>) value, key + '.');
+                    continue;
+                }
+            }
+            columns.add((JdbcColumn) schema.getColumn(base_key + key));
+        }
     }
 
     public static <ID> List<ID> execute(JdbcTemplate jdbc, JdbcSchema schema, Collection<? extends Map<String, Object>> entities, EntitySet.InsertPolicy insertPolicy) {
@@ -62,7 +81,23 @@ public class BatchUpsert<ID> implements BatchPreparedStatementSetterWithKeyHolde
         Map<String, Object> entity = entities[i];
         int idx = 0;
         for (QColumn col : columns) {
-            Object json_v = entity.get(col.getJsonKey());
+            String jsKey = col.getJsonKey();
+            Object json_v = null;
+            if (USE_FLAT_KEY) {
+                json_v = entity.get(jsKey);
+            } else {
+                int dot_p = jsKey.indexOf('.');
+                if (dot_p > 0) {
+                    String k1 = jsKey.substring(0, dot_p);
+                    Object sub = entity.get(k1);
+                    if (sub instanceof Map) {
+                        json_v = ((Map) sub).get(jsKey.substring(dot_p + 1));
+                    }
+                }
+                if (json_v == null) {
+                    json_v = entity.get(jsKey);
+                }
+            }
             if (json_v == null) {
                 json_v = entity.get(col.getPhysicalName());
             }

@@ -1,5 +1,6 @@
 package org.slowcoders.hyperql.jdbc.storage;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slowcoders.hyperql.EntitySet;
 import org.slowcoders.hyperql.jdbc.JdbcQuery;
 import org.slowcoders.hyperql.HyperQuery;
@@ -25,6 +26,9 @@ public abstract class SqlGenerator extends SqlConverter implements QueryGenerato
 
     private List<QResultMapping> resultMappings;
     private boolean noAliases;
+
+    private ObjectMapper objectMapper = new ObjectMapper();
+    private static final boolean USE_FLAT_KEY = false;
 
     public SqlGenerator(boolean isNativeQuery) {
         super(new SqlWriter());
@@ -397,16 +401,35 @@ public abstract class SqlGenerator extends SqlConverter implements QueryGenerato
     }
 
     protected void writeUpdateValueSet(QSchema schema, Map<String, Object> updateSet) {
-        for (Map.Entry<String, Object> entry : updateSet.entrySet()) {
+        writeUpdateValueMap(schema, updateSet, "");
+        sw.replaceTrailingComma("\n");
+    }
+
+    private void writeUpdateValueMap(QSchema schema, Map<String, Object> updateMap, String base_key) {
+        for (Map.Entry<String, Object> entry : updateMap.entrySet()) {
             String key = entry.getKey();
-            QColumn col = schema.getColumn(key);
-            Object value = BatchUpsert.convertJsonValueToColumnValue(col, entry.getValue());
+            Object rawValue = entry.getValue();
+            if (!USE_FLAT_KEY && rawValue instanceof Map) {
+                QColumn col = schema.findColumn(key);
+                if (col == null || !col.isJsonNode()) {
+                    writeUpdateValueMap(schema, (Map<String, Object>) rawValue, key + ".");
+                    continue;
+                }
+                try {
+                    rawValue = objectMapper.writeValueAsString(rawValue);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            QColumn col = schema.getColumn(base_key + key);
+            Object value = BatchUpsert.convertJsonValueToColumnValue(col, rawValue);
             sw.write("  ");
             sw.write(col.getPhysicalName()).write(" = ").writeValue(value);
             sw.write(",\n");
         }
         sw.replaceTrailingComma("\n");
     }
+
 
     public String createUpdateQuery(HyperFilter where, Map<String, Object> updateSet) {
         sw.write("\nUPDATE ").write(where.getSchema().getTableName()).write(" ").write(where.getMappingAlias()).writeln(" SET");

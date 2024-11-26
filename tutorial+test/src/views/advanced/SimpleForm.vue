@@ -116,6 +116,12 @@ export default {
               api.updateByIdList([row.id], row);
             }
           }
+          for (const row of res.content) {
+            const org = submission.data.children.find((r) => r.id === row.id);
+            if (!org) {
+              api.delete(row.id);
+            }
+          }
           // vm.$forceUpdate();
           return true;          
         });
@@ -148,7 +154,7 @@ export default {
 };
 
 let book_columns = [
-  HqlForm.hidden('id'),
+  HqlForm.number('id', "아이디"),
   HqlForm.text('title', "제목"),
   HqlForm.select('author.id', "저자", {
       table: 'author',
@@ -160,14 +166,15 @@ let book_columns = [
       value: 'id',
       label: 'name'
   }),*/
-  HqlForm.text('price', "가격"),
+  HqlForm.number('price', "가격"),
 ]
 
 let author_columns = [
     HqlForm.number('id', "아이디"),
     HqlForm.text('name', "이름"),
     // HqlForm.text('profile.hometown', "출생지"),
-    // HqlForm.text('profile.country', "국적"),
+    HqlForm.text('profile.country', "국적"),
+    HqlForm.number('profile.birthYear', "출생년도"),
 ]
 
 let customer_columns = [
