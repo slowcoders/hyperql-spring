@@ -5,13 +5,13 @@ import org.slowcoders.hyperql.RestTemplate;
 import org.slowcoders.hyperql.jdbc.JdbcQuery;
 import org.slowcoders.hyperql.js.JsUtil;
 import org.slowcoders.hyperql.schema.QResultMapping;
+import org.slowcoders.hyperql.util.KVEntity;
 import org.springframework.dao.DataAccessException;
 
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class ArrayRowMapper implements JdbcResultMapper<Object[]> {
     private final List<QResultMapping> resultMappings;
@@ -38,7 +38,7 @@ public class ArrayRowMapper implements JdbcResultMapper<Object[]> {
             Object[] values = new Object[columnCount];
             for (int i = columnNames.length; --i >= 0;) {
                 Object value;
-                if (mappedColumns[i]) {
+                if (false && mappedColumns[i]) {
                     value = JsUtil.parseJson(objectMapper, rs.getString(i + 1));
                 } else {
                     value = rs.getObject(i+1);
@@ -62,9 +62,82 @@ public class ArrayRowMapper implements JdbcResultMapper<Object[]> {
         return rows;
     }
 
-//    public String[] getColumnNames() {
-//        return this.columnNames;
-//    }
+    public static List<KVEntity> extractJsonData(List<Object[]> rows, ArrayList<Object> nameMappings)  {
+        RowToJsonConverter jsConvertor = new RowToJsonConverter(nameMappings);
+        List<KVEntity> jsRows = new ArrayList<>();
+        for (Object[] row : rows) {
+            KVEntity entity = jsConvertor.convert(row);
+            jsRows.add(entity);
+        }
+        return jsRows;
+    }
+
+    static class RowToJsonConverter {
+        private final ArrayList<Object> nameMappings;
+        private MapTarget target = new MapTarget();
+        static class MapTarget {
+            KVEntity entity;
+            String key;
+        }
+
+        public RowToJsonConverter(ArrayList<Object> nameMappings) {
+            this.nameMappings = nameMappings;
+        }
+
+        public KVEntity convert(Object[] row) {
+            KVEntity entity = extractJson(nameMappings.iterator(), Arrays.asList(row), 0);
+            return entity;
+        }
+
+        private boolean resolveScope(MapTarget target, KVEntity entity, Object name) {
+            if (name instanceof String key) {
+                target.entity = entity;
+                target.key = key;
+            } else if (name instanceof String[] keys) {
+                for (int idx = 0; idx < keys.length - 1; idx++) {
+                    KVEntity subEntity = (KVEntity) entity.get(keys[idx]);
+                    if (subEntity == null) {
+                        entity.put(keys[idx], subEntity = new KVEntity());
+                    }
+                    entity = subEntity;
+                }
+                target.entity = entity;
+                target.key = keys[keys.length - 1];
+            } else {
+                return false;
+            }
+            return true;
+        }
+
+        private KVEntity extractJson(Iterator<Object> pathIterator, List<Object> row, int idxColumn) {
+            KVEntity entity = new KVEntity();
+            while (pathIterator.hasNext()) {
+                Object name = pathIterator.next();
+                Object value = row.get(idxColumn++);
+
+                if (this.resolveScope(this.target, entity, name)) {
+                    this.target.entity.put(this.target.key, value);
+                } else if (name instanceof Map map) {
+                    MapTarget subTarget = new MapTarget();
+                    this.resolveScope(subTarget, entity, map.get("name"));
+
+                    List<Object> columns = (List<Object>)map.get("columns");
+                    if (value == null) {
+                        subTarget.entity.put(subTarget.key, null);
+                    } else {
+                        ArrayList<ArrayList<Object>> subRows = (ArrayList<ArrayList<Object>>) value;
+                        ArrayList<KVEntity> subEntities = new ArrayList<>();
+                        for (ArrayList<Object> subRow : subRows) {
+                            var subEntity = extractJson(columns.iterator(), subRow, 0);
+                            subEntities.add(subEntity);
+                        }
+                        subTarget.entity.put(subTarget.key, subEntities);
+                    }
+                }
+            }
+            return entity;
+        }
+    }
 
     private String[] initMappedColumns(ResultSet rs) throws SQLException {
 

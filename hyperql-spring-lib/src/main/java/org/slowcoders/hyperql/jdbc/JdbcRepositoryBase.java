@@ -149,6 +149,9 @@ public abstract class JdbcRepositoryBase<ID> extends HyperRepository<ID> {
                 sql += s;
             }
             res = jdbc.query(sql, rsExtractor);
+            if (SqlGenerator.JSON_RS) {
+                res = ArrayRowMapper.extractJsonData(res, query.getFilter().getColumnNameMappings());
+            }
         }
         RestTemplate.Response resp = RestTemplate.Response.of(res, query.getSelection());
         if (rsExtractor != null) rsExtractor.setOutputMetadata(resp);
