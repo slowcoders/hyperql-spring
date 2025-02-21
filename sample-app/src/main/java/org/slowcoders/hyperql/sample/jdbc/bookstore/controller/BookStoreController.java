@@ -1,7 +1,6 @@
 package org.slowcoders.hyperql.sample.jdbc.bookstore.controller;
 
 import jakarta.annotation.PostConstruct;
-import org.slowcoders.hyperql.HyperStorage;
 import org.slowcoders.hyperql.HyperStorageController;
 import org.slowcoders.hyperql.jdbc.JdbcStorage;
 import org.slowcoders.hyperql.jdbc.storage.JdbcColumn;
@@ -17,8 +16,13 @@ public class BookStoreController extends HyperStorageController.CRUD implements 
         super(storage, "bookstore", conversionService);
     }
 
+
     @PostConstruct
     void init() {
+
+//        Foo22 foo22 = new Foo22.Foo22Builder().name("ggg").build();
+        new Foo22Gen();
+
         var storage = (JdbcStorage)this.getStorage();
         storage.setSortCollation(" COLLATE \"ko_KR.utf8\"");
         {

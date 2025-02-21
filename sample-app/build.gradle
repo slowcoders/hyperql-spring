@@ -20,11 +20,15 @@ configurations {
 
 dependencies {
     implementation project(':hyperql-spring-lib')
+    annotationProcessor project(':hyperql-spring-lib')
 
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-aop'
     implementation 'org.springframework.boot:spring-boot-devtools'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+    
+    annotationProcessor 'com.google.auto.service:auto-service:1.0.1'
+    compileOnly 'com.google.auto.service:auto-service-annotations:1.0.1'
 
     // for Swagger API documentation
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
@@ -67,3 +71,6 @@ dependencies {
 //    implementation 'javax.cache:cache-api:1.1.1'
 }
 
+tasks.withType(JavaCompile) {
+    options.compilerArgs += ['-Aprint=true']
+}
