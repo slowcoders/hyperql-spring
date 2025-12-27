@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="org.slowcoders.hyperquery.bookstore.mapper.UserMapper">
+
+    <resultMap id="UserMap" type="org.slowcoders.hyperquery.bookstore.UserDto">
+        <id     property="id"        column="id"/>
+        <result property="email"     column="email"/>
+        <result property="name"      column="name"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <select id="findById" resultMap="UserMap">
+        SELECT id, email, name, created_at
+        FROM "User"
+        WHERE id = #{id}
+    </select>
+
+    <select id="findAll" resultMap="UserMap">
+        SELECT id, email, name, created_at
+        FROM "User"
+        ORDER BY id DESC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO "User" (email, name, created_at)
+        VALUES (#{email}, #{name}, now())
+    </insert>
+
+    <update id="update">
+        UPDATE "User"
+        SET email = #{email},
+            name  = #{name}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM "User"
+        WHERE id = #{id}
+    </delete>
+
+</mapper>

@@ -20,6 +20,7 @@ configurations {
 
 dependencies {
     implementation project(':hyperql-spring-lib')
+    implementation project(':hyperquery')
 
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-aop'

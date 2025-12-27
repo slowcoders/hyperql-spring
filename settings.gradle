@@ -1,3 +1,4 @@
 rootProject.name = 'HyperQL'
 include ':hyperql-spring-lib'
+include ':hyperquery'
 include ':sample-app'

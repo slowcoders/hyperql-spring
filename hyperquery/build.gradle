@@ -1,0 +1,55 @@
+plugins {
+    id 'java'
+    id 'antlr'
+    id 'org.springframework.boot'
+    id 'io.spring.dependency-management'
+}
+
+group = 'org.slowcoders'
+version = '0.0.1-SNAPSHOT'
+description = 'hql'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-data-jdbc'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:4.0.0'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    compileOnly 'org.projectlombok:lombok'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+    runtimeOnly 'org.postgresql:postgresql'
+    annotationProcessor 'org.projectlombok:lombok'
+//    testImplementation 'org.springframework.boot:spring-boot-starter-data-jdbc-test'
+//    testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
+//    testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:4.0.0'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    antlr "org.antlr:antlr4:4.13.1" // g4 파일을 java 코드로 변환
+    implementation "org.antlr:antlr4-runtime:4.13.1" // 실행할 때 사용
+}
+
+generateGrammarSource {
+    maxHeapSize = "64m"
+    arguments += ["-visitor", "-long-messages", "-package", "org.slowcoders.hql.core.antlr"
+    //              , "-Xexact-output-dir"
+    ]
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
