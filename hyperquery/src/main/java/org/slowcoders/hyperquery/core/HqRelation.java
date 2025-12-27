@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class HqRelation {
+    private final String definition;
     private Class<?> clazz;
     private Map<String, QJoin> joins;
     private Map<String, QLambda> lambdas;
@@ -15,8 +16,12 @@ public class HqRelation {
 
     public HqRelation(Class<?> clazz) {
         this.clazz = clazz;
+        Q.From from = clazz.getAnnotation(Q.From.class);
+        this.definition = from.value();
     }
 
+
+    public Class<?> getEntityClass() { return clazz; }
     public String resolveProperty(String property) {
         int p = property.lastIndexOf('.');
         String view = property.substring(0, p);
@@ -70,7 +75,7 @@ public class HqRelation {
                 if (propertyType == QJoin.class) {
                     f.setAccessible(true);
                     QJoin join = (QJoin) f.get(null);
-                    joins.put(f.getName(), join);
+                    joins.put("@" + f.getName(), join);
                 }
                 else if (propertyType == QLambda.class) {
                     f.setAccessible(true);
@@ -87,4 +92,12 @@ public class HqRelation {
         this.joins = joins;
     }
 
+    public String getJoinTarget() {
+        return definition;
+    }
+
+    public QJoin getJoin(String join) {
+        this.initialize();
+        return joins.get(join);
+    }
 }

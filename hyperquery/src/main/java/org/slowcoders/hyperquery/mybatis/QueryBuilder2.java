@@ -8,10 +8,7 @@ import org.apache.ibatis.mapping.SqlSource;
 import org.apache.ibatis.parsing.XNode;
 import org.apache.ibatis.session.Configuration;
 import org.mybatis.spring.SqlSessionTemplate;
-import org.slowcoders.hyperquery.core.HqRelation;
-import org.slowcoders.hyperquery.core.QColumn;
-import org.slowcoders.hyperquery.core.QFilter;
-import org.slowcoders.hyperquery.core.QRecord;
+import org.slowcoders.hyperquery.core.*;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -79,11 +76,14 @@ public class QueryBuilder2 {
         }
         sb.setLength(sb.length() - 2);
         sb.append('\n');
-        sb.append("from ").append("hpms.hpbk_block_detail_copy ").append("@").append('\n');
-        for (String join : joinAliases) {
-            sb.append("left join ").append(joinMap.get(join)).append(" ").append(join);
+
+        HqRelation relation = filter.getRelation();
+        sb.append("from ").append(relation.getJoinTarget()).append(" @").append('\n');
+        for (String alias : joinAliases) {
+            QJoin join = relation.getJoin(alias);
+            sb.append("left join ").append(join.getTargetRelation().getJoinTarget()).append(" ").append(alias);
             // replace #*. -> "@" + join + "."
-            sb.append("\n on @.BLOCK_ID = ").append(join).append(".BLOCK_ID").append('\n');
+            sb.append("\n on ").append(join.getJoinCriteria().replace("#", alias)).append('\n');
         }
 
         String sql = sb.append("where ").append(filter.toString()).toString();
@@ -94,14 +94,14 @@ public class QueryBuilder2 {
         }
         sql = sql.replaceAll("@(?=\\W)", "t_0");
         filter.setSql(sql);
-        String id = registerMapper(null, null, resultType);
+        String id = registerMapper(null, filter.getRelation(), resultType);
 
         Object res = sqlSessionTemplate.selectList(id, filter);
         return (List) res;
     }
 
-    String registerMapper(SqlSource sqlSource, Class<?> repositoryType, Class<?> resultType) {
-        String id = repositoryType.getName() + ".__select__." + resultType.getName();
+    String registerMapper(SqlSource sqlSource, HqRelation relation, Class<?> resultType) {
+        String id = relation.getEntityClass().getName() + ".__select__." + resultType.getName();
 
         if (!configuration.hasStatement(id)) {
             ResultMap inlineResultMap = new ResultMap.Builder(configuration, id + "-Inline", resultType,
@@ -109,7 +109,7 @@ public class QueryBuilder2 {
             List<ResultMap> __resultMaps = new ArrayList<>();
             __resultMaps.add(inlineResultMap);
 
-            String root_id = repositoryType.getName() + ".__select__";
+            String root_id = relation.getEntityClass().getName() + ".__select__";
             MappedStatement root_ms = configuration.getMappedStatement(root_id);
             if (sqlSource == null) sqlSource = root_ms.getSqlSource();
             MappedStatement.Builder builder = new MappedStatement.Builder(configuration, id, sqlSource, root_ms.getSqlCommandType())

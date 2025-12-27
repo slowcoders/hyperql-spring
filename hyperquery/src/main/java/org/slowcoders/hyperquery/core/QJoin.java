@@ -12,6 +12,10 @@ public class QJoin {
         this.toUnique = toUnique;
     }
 
+    public String getJoinCriteria() {
+        return sql;
+    }
+    public boolean isToUnique() { return toUnique; }
     public static QJoin toSingle(Class<?> entity, String joinOn) {
         return new QJoin(entity, joinOn, true);
     }

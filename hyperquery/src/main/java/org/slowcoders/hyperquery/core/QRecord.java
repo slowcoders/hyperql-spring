@@ -1,6 +1,6 @@
 package org.slowcoders.hyperquery.core;
 
-public class QRecord<T> {
+public class QRecord<T extends QRelation> {
     private final Class<T> relation;
 
     public QRecord(Class<T> relation) {

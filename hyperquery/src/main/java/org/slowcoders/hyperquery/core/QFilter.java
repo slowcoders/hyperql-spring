@@ -4,7 +4,7 @@ import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-public class QFilter<T> {
+public class QFilter<T extends QRelation> {
 
     @Retention(RetentionPolicy.RUNTIME)
     public @interface Condition {
@@ -73,8 +73,7 @@ public class QFilter<T> {
     }
 
     public QCriteria buildCriteria() {
-        Class<? extends QFilter> clazz = this.getClass();
-        return QCriteria.buildCriteria(clazz, "@");
+        return QCriteria.buildCriteria(this, "@");
     }
 
 

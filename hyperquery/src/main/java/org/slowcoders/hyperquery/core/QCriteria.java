@@ -14,8 +14,8 @@ class QCriteria extends ArrayList<String> {
         this.type = type;
     }
 
-    public static QCriteria buildCriteria(Class<? extends QFilter> clazz, String s) {
-        return new CriteriaBuilder(clazz, s).build();
+    public static QCriteria buildCriteria(QFilter<?> filter, String s) {
+        return new CriteriaBuilder(filter, s).build();
     }
 
     public String toString() {

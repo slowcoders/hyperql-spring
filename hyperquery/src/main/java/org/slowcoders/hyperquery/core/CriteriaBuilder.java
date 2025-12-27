@@ -7,10 +7,10 @@ import java.util.Collection;
 import java.util.Stack;
 
 public class CriteriaBuilder {
-    Class<? extends QFilter> clazz;
+    QFilter<?> filter;
     String prefix;
-    CriteriaBuilder(Class<? extends QFilter> clazz, String prefix) {
-        this.clazz = clazz;
+    CriteriaBuilder(QFilter<?> filter, String prefix) {
+        this.filter = filter;
         this.prefix = prefix;
     }
 
@@ -19,7 +19,7 @@ public class CriteriaBuilder {
         QCriteria criteria = new QCriteria(QCriteria.LogicalOp.AND);
 
         try {
-            for (Field f : clazz.getDeclaredFields()) {
+            for (Field f : filter.getClass().getDeclaredFields()) {
                 QFilter.Begin[] beginStack = f.getAnnotationsByType(QFilter.Begin.class);
                 QFilter.EndOf[] endStack = f.getAnnotationsByType(QFilter.EndOf.class);
                 QFilter.Condition condition = f.getAnnotation(QFilter.Condition.class);
@@ -43,7 +43,7 @@ public class CriteriaBuilder {
                 }
 
                 f.setAccessible(true);
-                Object value = f.get(this);
+                Object value = f.get(filter);
                 if (ObjectUtils.isEmpty(value)) continue;
 
                 if (condition != null) {
@@ -63,7 +63,7 @@ public class CriteriaBuilder {
                     if (!QFilter.class.isAssignableFrom(f.getType())) {
                         throw new IllegalStateException("Invalid @EmbedFilter on " + f.getName());
                     }
-                    String expr = new CriteriaBuilder((Class<? extends QFilter>) f.getType(), subFilter.value()).build().toString();
+                    String expr = new CriteriaBuilder((QFilter<?>)value, subFilter.value()).build().toString();
                     criteria.add(expr);
                 }
             }

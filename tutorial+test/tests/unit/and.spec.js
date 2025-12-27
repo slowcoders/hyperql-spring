@@ -1,9 +1,11 @@
 import {beforeAll, describe, expect, test} from '@jest/globals';
-import { customerRepo } from '@/sample_db'
+import { customerRepo, initSampleDB } from '@/sample_db'
 
 describe('And operation', () => {
   let last_count;
   const filter = {}
+
+    initSampleDB();
 
   beforeAll(async () => {
     const res = await customerRepo.find();
