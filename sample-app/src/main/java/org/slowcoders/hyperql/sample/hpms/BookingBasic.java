@@ -1,4 +1,4 @@
-package org.slowcoders.hyperquery.hpms;
+package org.slowcoders.hyperql.sample.hpms;
 
 import org.slowcoders.hyperquery.core.Q;
 import org.slowcoders.hyperquery.core.QJoin;

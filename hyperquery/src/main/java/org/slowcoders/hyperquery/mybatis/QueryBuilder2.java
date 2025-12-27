@@ -8,7 +8,6 @@ import org.apache.ibatis.mapping.SqlSource;
 import org.apache.ibatis.parsing.XNode;
 import org.apache.ibatis.session.Configuration;
 import org.mybatis.spring.SqlSessionTemplate;
-import org.slowcoders.hyperquery.bookstore.mapper.UserMapper;
 import org.slowcoders.hyperquery.core.HqRelation;
 import org.slowcoders.hyperquery.core.QColumn;
 import org.slowcoders.hyperquery.core.QFilter;
@@ -95,14 +94,14 @@ public class QueryBuilder2 {
         }
         sql = sql.replaceAll("@(?=\\W)", "t_0");
         filter.setSql(sql);
-        String id = registerMapper(null, resultType);
+        String id = registerMapper(null, null, resultType);
 
         Object res = sqlSessionTemplate.selectList(id, filter);
         return (List) res;
     }
 
-    String registerMapper(SqlSource sqlSource, Class<?> resultType) {
-        String id = UserMapper.class.getName() + ".__select__." + resultType.getName();
+    String registerMapper(SqlSource sqlSource, Class<?> repositoryType, Class<?> resultType) {
+        String id = repositoryType.getName() + ".__select__." + resultType.getName();
 
         if (!configuration.hasStatement(id)) {
             ResultMap inlineResultMap = new ResultMap.Builder(configuration, id + "-Inline", resultType,
@@ -110,7 +109,7 @@ public class QueryBuilder2 {
             List<ResultMap> __resultMaps = new ArrayList<>();
             __resultMaps.add(inlineResultMap);
 
-            String root_id = UserMapper.class.getName() + ".__select__";
+            String root_id = repositoryType.getName() + ".__select__";
             MappedStatement root_ms = configuration.getMappedStatement(root_id);
             if (sqlSource == null) sqlSource = root_ms.getSqlSource();
             MappedStatement.Builder builder = new MappedStatement.Builder(configuration, id, sqlSource, root_ms.getSqlCommandType())

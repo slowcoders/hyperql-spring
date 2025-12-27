@@ -1,8 +1,8 @@
-package org.slowcoders.hyperquery.bookstore;
+package org.slowcoders.hyperql.sample.hq.bookstore;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.slowcoders.hyperquery.bookstore.model.Book;
+import org.slowcoders.hyperql.sample.hq.bookstore.model.Book;
 import org.slowcoders.hyperquery.core.QFilter;
 
 @Getter

@@ -1,6 +1,6 @@
-package org.slowcoders.hyperquery.hpms.api;
+package org.slowcoders.hyperql.sample.hpms.api;
 
-import org.slowcoders.hyperquery.bookstore.UserDto;
+import org.slowcoders.hyperql.sample.hq.bookstore.UserDto;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 

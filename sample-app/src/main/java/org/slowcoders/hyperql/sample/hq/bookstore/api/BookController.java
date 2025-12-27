@@ -1,8 +1,8 @@
-package org.slowcoders.hyperquery.bookstore.api;
+package org.slowcoders.hyperql.sample.hq.bookstore.api;
 
-import org.slowcoders.hyperquery.bookstore.BookDto;
-import org.slowcoders.hyperquery.bookstore.BookFilter;
-import org.slowcoders.hyperquery.bookstore.model.BookService;
+import org.slowcoders.hyperql.sample.hq.bookstore.BookDto;
+import org.slowcoders.hyperql.sample.hq.bookstore.BookFilter;
+import org.slowcoders.hyperql.sample.hq.bookstore.BookService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;

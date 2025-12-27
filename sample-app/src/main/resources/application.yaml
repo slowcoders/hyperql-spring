@@ -26,6 +26,11 @@ server:
     min-response-size: 2048
     mime-types: application/json,application/xml,text/html,text/xml,text/plain,application/javascript
 
+mybatis:
+  mapper-locations: classpath:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+
 
 springdoc:
   swagger-ui.tagsSorter: alpha

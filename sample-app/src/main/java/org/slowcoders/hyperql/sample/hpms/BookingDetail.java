@@ -1,7 +1,6 @@
-package org.slowcoders.hyperquery.hpms;
+package org.slowcoders.hyperql.sample.hpms;
 
 import org.slowcoders.hyperquery.core.*;
-import org.slowcoders.hyperquery.bookstore.mapper.UserMapper;
 
 import java.util.EnumSet;
 
@@ -25,8 +24,4 @@ interface BookingDetail extends HpmsGlobal {
     QAttribute arrival_cnt = QAttribute.of("case when @._deduct_yn = 'Y' and @._due_in_yn   = 'Y'  then @.room_count end");
     QAttribute departure_cnt = QAttribute.of("case when @._deduct_yn = 'Y' and @._due_out_yn  = 'Y'  then @.room_count end");
 
-    QTrigger onUpdate1 = QTrigger.on(EnumSet.of(QTrigger.Event.UPDATE),
-            UserMapper.class, "method1");
-    QTrigger onUpdate2 = QTrigger.on(EnumSet.of(QTrigger.Event.UPDATE),
-            UserMapper.class, "method2");
 }

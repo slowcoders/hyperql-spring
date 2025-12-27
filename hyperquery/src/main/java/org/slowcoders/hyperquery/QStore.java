@@ -25,6 +25,6 @@ public class QStore {
     }
 
     public <T> T selectOne(Class<T> recordType, QFilter<?> filter) {
-        return qb.selectEntities(recordType, filter);
+        return qb.selectOne(recordType, filter);
     }
 }

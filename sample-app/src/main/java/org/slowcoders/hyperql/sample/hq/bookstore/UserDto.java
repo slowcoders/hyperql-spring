@@ -1,4 +1,4 @@
-package org.slowcoders.hyperquery.bookstore;
+package org.slowcoders.hyperql.sample.hq.bookstore;
 
 import lombok.Data;
 import java.time.OffsetDateTime;

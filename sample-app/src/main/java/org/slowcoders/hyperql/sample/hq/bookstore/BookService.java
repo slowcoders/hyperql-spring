@@ -1,4 +1,4 @@
-package org.slowcoders.hyperquery.bookstore.model;
+package org.slowcoders.hyperql.sample.hq.bookstore;
 
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionTemplate;

@@ -1,7 +1,7 @@
-package org.slowcoders.hyperquery.bookstore;
+package org.slowcoders.hyperql.sample.hq.bookstore;
 
 import lombok.RequiredArgsConstructor;
-import org.slowcoders.hyperquery.bookstore.mapper.UserMapper;
+import org.slowcoders.hyperql.sample.hq.bookstore.mapper.UserMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;

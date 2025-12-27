@@ -1,8 +1,8 @@
-package org.slowcoders.hyperquery.bookstore.mapper;
+package org.slowcoders.hyperql.sample.hq.bookstore.mapper;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import org.slowcoders.hyperquery.bookstore.UserDto;
+import org.slowcoders.hyperql.sample.hq.bookstore.UserDto;
 
 import java.util.List;
 import java.util.Optional;
