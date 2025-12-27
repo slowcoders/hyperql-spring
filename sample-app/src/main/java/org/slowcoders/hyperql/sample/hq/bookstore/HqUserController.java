@@ -9,9 +9,9 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api/hq/users")
 @RequiredArgsConstructor
-public class UserController {
+public class HqUserController {
 
     private final UserMapper userMapper;
 

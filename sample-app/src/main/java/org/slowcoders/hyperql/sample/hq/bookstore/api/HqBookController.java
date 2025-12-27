@@ -5,16 +5,18 @@ import org.slowcoders.hyperql.sample.hq.bookstore.BookFilter;
 import org.slowcoders.hyperql.sample.hq.bookstore.BookService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-@RestController("/api/books")
-public class BookController {
+@RestController
+@RequestMapping("/api/hq/books")
+public class HqBookController {
 
     private final BookService service;
 
-    BookController(BookService service) {
+    HqBookController(BookService service) {
         this.service = service;
     }
 
