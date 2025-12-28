@@ -1,5 +1,6 @@
-package org.slowcoders.hyperquery.core;
+package org.slowcoders.hyperquery.impl;
 
+import org.slowcoders.hyperquery.core.QFilter;
 import org.springframework.util.ObjectUtils;
 
 import java.lang.reflect.Field;
@@ -23,7 +24,7 @@ public class CriteriaBuilder {
                 QFilter.Begin[] beginStack = f.getAnnotationsByType(QFilter.Begin.class);
                 QFilter.EndOf[] endStack = f.getAnnotationsByType(QFilter.EndOf.class);
                 QFilter.Condition condition = f.getAnnotation(QFilter.Condition.class);
-                QFilter.JoinFilter subFilter = f.getAnnotation(QFilter.JoinFilter.class);
+                QFilter.EmbedFilter subFilter = f.getAnnotation(QFilter.EmbedFilter.class);
 //                QFilter.LambdaCondition lambda = f.getAnnotation(QFilter.LambdaCondition.class);
 
                 for (QFilter.EndOf end : endStack) {

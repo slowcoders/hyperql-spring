@@ -8,6 +8,8 @@ import org.antlr.v4.runtime.tree.TerminalNode;
 import org.slowcoders.hql.core.antlr.PredicateBaseVisitor;
 import org.slowcoders.hql.core.antlr.PredicateLexer;
 import org.slowcoders.hql.core.antlr.PredicateParser;
+import org.slowcoders.hyperquery.impl.HqRelation;
+import org.slowcoders.hyperquery.impl.QLambda;
 
 import java.util.ArrayList;
 import java.util.List;

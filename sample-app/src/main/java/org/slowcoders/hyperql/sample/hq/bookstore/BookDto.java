@@ -9,7 +9,7 @@ import org.slowcoders.hyperquery.core.QRecord;
 import java.time.OffsetDateTime;
 
 @Getter
-public class BookDto extends QRecord<BookRepository> {
+public class BookDto implements QRecord<Book> {
 
     @QColumn("id")
     private Long id;
@@ -17,14 +17,10 @@ public class BookDto extends QRecord<BookRepository> {
     @QColumn("title")
     private String title;
 
-    @QColumn("@author.name")
+    @QColumn("@author_.name")
     private String author;
 
     private OffsetDateTime createdAt;
-
-    public BookDto() {
-        super(BookRepository.class);
-    }
 
 }
 

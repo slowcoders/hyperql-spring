@@ -1,4 +1,7 @@
-package org.slowcoders.hyperquery.core;
+package org.slowcoders.hyperquery.impl;
+
+import org.slowcoders.hyperquery.core.QEntity;
+import org.slowcoders.hyperquery.core.QFrom;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -7,21 +10,22 @@ import java.util.Map;
 
 public class HqRelation {
     private final String definition;
-    private Class<?> clazz;
+    private Class<? extends QEntity> entityType;
     private Map<String, QJoin> joins;
     private Map<String, QLambda> lambdas;
     private Map<String, String> properties;
 
     private static final HashMap<Class<?>, HqRelation> relations = new HashMap<>();
 
-    public HqRelation(Class<?> clazz) {
-        this.clazz = clazz;
-        Q.From from = clazz.getAnnotation(Q.From.class);
+    public HqRelation(Class<? extends QEntity> entityType) {
+        this.entityType = entityType;
+        QFrom from = entityType.getAnnotation(QFrom.class);
         this.definition = from.value();
     }
 
 
-    public Class<?> getEntityClass() { return clazz; }
+    public Class<? extends QEntity> getEntityType() { return entityType; }
+
     public String resolveProperty(String property) {
         int p = property.lastIndexOf('.');
         String view = property.substring(0, p);
@@ -47,9 +51,9 @@ public class HqRelation {
         return relation.lambdas.get(property);
     }
 
-    public static HqRelation getRelation(Class<?> clazz) { return relations.get(clazz); }
+    public static HqRelation getRelation(Class<? extends QEntity> clazz) { return relations.get(clazz); }
 
-    public static HqRelation registerRelation(Class<?> clazz) {
+    public static HqRelation registerRelation(Class<? extends QEntity> clazz) {
         HqRelation relation = relations.get(clazz);
         if (relation == null) {
             synchronized (relations) {
@@ -69,15 +73,15 @@ public class HqRelation {
         HashMap<String, QJoin> joins = new HashMap<>();
         HashMap<String, QLambda> lambdas = new HashMap<>();
         try {
-            for (Field f : clazz.getDeclaredFields()) {
+            for (Field f : entityType.getDeclaredFields()) {
                 if (!Modifier.isStatic(f.getModifiers())) continue;
                 Class<?> propertyType = f.getType();
-                if (propertyType == QJoin.class) {
+                if (QJoin.class.isAssignableFrom(propertyType)) {
                     f.setAccessible(true);
                     QJoin join = (QJoin) f.get(null);
                     joins.put("@" + f.getName(), join);
                 }
-                else if (propertyType == QLambda.class) {
+                else if (QLambda.class.isAssignableFrom(propertyType)) {
                     f.setAccessible(true);
                     QLambda lambda = (QLambda) f.get(null);
                     lambda.init(this, f.getName());

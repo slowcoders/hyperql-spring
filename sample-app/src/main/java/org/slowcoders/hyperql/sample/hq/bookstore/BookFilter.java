@@ -8,11 +8,11 @@ import org.slowcoders.hyperquery.core.QFilter;
 
 @Getter
 @Setter
-public class BookFilter extends QFilter<BookRepository> {
+public class BookFilter extends QFilter<Book> {
     @Condition("title ilike '%' || ? || '%'")
     private String title;
 
     BookFilter() {
-        super(BookRepository.class);
+        super(Book.class);
     }
 }

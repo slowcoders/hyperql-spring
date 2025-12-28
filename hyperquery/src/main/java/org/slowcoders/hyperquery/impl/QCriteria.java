@@ -1,8 +1,10 @@
-package org.slowcoders.hyperquery.core;
+package org.slowcoders.hyperquery.impl;
+
+import org.slowcoders.hyperquery.core.QFilter;
 
 import java.util.ArrayList;
 
-class QCriteria extends ArrayList<String> {
+public class QCriteria extends ArrayList<String> {
 
     public enum LogicalOp {
         AND, OR, NOT_AND, NOT_OR;

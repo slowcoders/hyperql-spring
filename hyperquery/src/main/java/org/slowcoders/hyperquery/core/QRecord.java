@@ -1,13 +1,11 @@
 package org.slowcoders.hyperquery.core;
 
-public class QRecord<T extends QRelation> {
-    private final Class<T> relation;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
-    public QRecord(Class<T> relation) {
-        this.relation = relation;
-    }
-
-    public final Class<T> getRelation() {
-        return relation;
+public interface QRecord<T extends QEntity> {
+    @Retention(RetentionPolicy.RUNTIME)
+    @interface Property {
+        String value();
     }
 }

@@ -1,9 +1,9 @@
-package org.slowcoders.hyperquery.core;
+package org.slowcoders.hyperquery.impl;
 
 public class QAttribute {
 
     private final String sql;
-    private QAttribute(String sql) {
+    public QAttribute(String sql) {
         this.sql = sql;
     }
 

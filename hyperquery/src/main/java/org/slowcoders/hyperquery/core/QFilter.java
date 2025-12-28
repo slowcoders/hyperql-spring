@@ -1,10 +1,13 @@
 package org.slowcoders.hyperquery.core;
 
+import org.slowcoders.hyperquery.impl.HqRelation;
+import org.slowcoders.hyperquery.impl.QCriteria;
+
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-public class QFilter<T extends QRelation> {
+public class QFilter<T extends QEntity> {
 
     @Retention(RetentionPolicy.RUNTIME)
     public @interface Condition {
@@ -13,15 +16,10 @@ public class QFilter<T extends QRelation> {
     }
 
     @Retention(RetentionPolicy.RUNTIME)
-    public @interface JoinFilter {
+    public @interface EmbedFilter {
         /** alias of the joined table or view */
         String value();
     }
-
-//    @Retention(RetentionPolicy.RUNTIME)
-//    public @interface LambdaCondition {
-//        String value();
-//    }
 
     @Repeatable(Begin.Stack.class)
     @Retention(RetentionPolicy.RUNTIME)

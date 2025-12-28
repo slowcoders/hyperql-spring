@@ -9,11 +9,13 @@ import org.apache.ibatis.parsing.XNode;
 import org.apache.ibatis.session.Configuration;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.slowcoders.hyperquery.core.*;
+import org.slowcoders.hyperquery.impl.HqRelation;
+import org.slowcoders.hyperquery.impl.QJoin;
 
 import java.lang.reflect.Field;
 import java.util.*;
 
-public class QueryBuilder2 {
+public class QStore<E extends QEntity> {
     private final Configuration configuration;
     private final SqlSessionTemplate sqlSessionTemplate;
     private final List<ColumnMapping> columnMappings = new ArrayList<>();
@@ -21,6 +23,8 @@ public class QueryBuilder2 {
     private final Set<Class<QRecord>> usedTables = new HashSet<>();
 
     static final Map<String, HqRelation> joinMap = new HashMap<>();
+    private final Class<? extends QRepository<E>> repositoryType;
+
     static class ColumnMapping {
         private final String columnName;
         private final String fieldName;
@@ -29,12 +33,13 @@ public class QueryBuilder2 {
             this.fieldName = fieldName;
         }
     }
-    public QueryBuilder2(Configuration configuration, SqlSessionTemplate sqlSessionTemplate) {
+    public QStore(Configuration configuration, SqlSessionTemplate sqlSessionTemplate, Class<? extends QRepository<E>> repositoryType) {
         this.configuration = configuration;
         this.sqlSessionTemplate = sqlSessionTemplate;
+        this.repositoryType = repositoryType;
     }
 
-    void addSelection(Class<?> clazz, String propertyPrefix, String fromAlias) {
+    private void addSelection(Class<?> clazz, String propertyPrefix, String fromAlias) {
         for (Field f : clazz.getDeclaredFields()) {
             QColumn anno = f.getAnnotation(QColumn.class);
             if (anno == null) continue;
@@ -59,14 +64,14 @@ public class QueryBuilder2 {
         }
     }
 
-    public <T> T selectOne(Class<T> resultType, QFilter<?> filter) {
-        List<T> res = selectEntities(resultType, filter);
+    public <R extends QRecord<E>> R selectOne(Class<R> resultType, QFilter<E> filter) {
+        List<R> res = selectList(resultType, filter);
         if (res.isEmpty()) return null;
         if (res.size() > 1) throw new IllegalStateException("Too many rows returned.");
         return res.get(0);
     }
 
-    public <T> List<T> selectEntities(Class<T> resultType, QFilter<?> filter) {
+    public <R extends QRecord<E>> List<R> selectList(Class<R> resultType, QFilter<E> filter) {
         this.addSelection(resultType, "", "@");
 
         StringBuilder sb = new StringBuilder();
@@ -101,7 +106,7 @@ public class QueryBuilder2 {
     }
 
     String registerMapper(SqlSource sqlSource, HqRelation relation, Class<?> resultType) {
-        String id = relation.getEntityClass().getName() + ".__select__." + resultType.getName();
+        String id = repositoryType.getName() + ".__select__." + resultType.getName();
 
         if (!configuration.hasStatement(id)) {
             ResultMap inlineResultMap = new ResultMap.Builder(configuration, id + "-Inline", resultType,
@@ -109,7 +114,7 @@ public class QueryBuilder2 {
             List<ResultMap> __resultMaps = new ArrayList<>();
             __resultMaps.add(inlineResultMap);
 
-            String root_id = relation.getEntityClass().getName() + ".__select__";
+            String root_id = repositoryType.getName() + ".__select__";
             MappedStatement root_ms = configuration.getMappedStatement(root_id);
             if (sqlSource == null) sqlSource = root_ms.getSqlSource();
             MappedStatement.Builder builder = new MappedStatement.Builder(configuration, id, sqlSource, root_ms.getSqlCommandType())

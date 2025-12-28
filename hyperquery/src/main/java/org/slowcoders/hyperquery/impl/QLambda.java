@@ -1,4 +1,4 @@
-package org.slowcoders.hyperquery.core;
+package org.slowcoders.hyperquery.impl;
 
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -45,7 +45,7 @@ public class QLambda {
         return sb.toString();
     }
 
-    protected void init(HqRelation relation, String name) {
+    public void init(HqRelation relation, String name) {
         this.relation = relation;
         this.name = name;
     }

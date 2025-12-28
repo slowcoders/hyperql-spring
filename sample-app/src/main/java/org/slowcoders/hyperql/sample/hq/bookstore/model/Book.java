@@ -3,11 +3,18 @@ package org.slowcoders.hyperql.sample.hq.bookstore.model;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.slowcoders.hyperquery.core.QEntity;
+import org.slowcoders.hyperquery.core.QFrom;
+import org.slowcoders.hyperquery.core.QRepository;
 
 import java.util.Set;
 
 
-public class Book implements java.io.Serializable {
+@QFrom("bookstore.book")
+public class Book implements QEntity {
+
+    static final Join author_ = Join.toOne(Author.class, "#.id = @.author_id");
+
     @Getter @Setter
     @Id
     @Column(name = "id", nullable = false)
