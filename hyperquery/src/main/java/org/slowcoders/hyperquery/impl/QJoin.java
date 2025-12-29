@@ -1,15 +1,16 @@
 package org.slowcoders.hyperquery.impl;
 
 import org.slowcoders.hyperquery.core.QEntity;
+import org.slowcoders.hyperquery.core.QView;
 
 public class QJoin {
     private final String sql;
-    private final HqRelation relation;
+    private final QView view;
     private final boolean toUnique;
 
     // Cross Join 은 지원하지 읺는다.
-    public QJoin(Class<? extends QEntity> targetEntity, String sql, boolean toUnique) {
-        this.relation = HqRelation.registerRelation(targetEntity);
+    protected QJoin(QView view, String sql, boolean toUnique) {
+        this.view = (QView) view;
         this.sql = sql;
         this.toUnique = toUnique;
     }
@@ -19,7 +20,7 @@ public class QJoin {
     }
     public boolean isToUnique() { return toUnique; }
 
-    public HqRelation getTargetRelation() {
-        return relation;
+    public QView getTargetRelation() {
+        return view;
     }
 }

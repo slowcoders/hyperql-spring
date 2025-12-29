@@ -2,64 +2,73 @@ package org.slowcoders.hyperquery.impl;
 
 import org.slowcoders.hyperquery.core.QEntity;
 import org.slowcoders.hyperquery.core.QFrom;
+import org.slowcoders.hyperquery.core.QView;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
 
-public class HqRelation {
-    private final String definition;
-    private Class<? extends QEntity> entityType;
+public class HSchema extends QView {
+    private final Class<? extends QEntity> entityType;
     private Map<String, QJoin> joins;
     private Map<String, QLambda> lambdas;
     private Map<String, String> properties;
 
-    private static final HashMap<Class<?>, HqRelation> relations = new HashMap<>();
+    private static final HashMap<Class<?>, HSchema> relations = new HashMap<>();
 
-    public HqRelation(Class<? extends QEntity> entityType) {
+    public HSchema(Class<? extends QEntity> entityType) {
+        super(getTableName(entityType));
         this.entityType = entityType;
+    }
+
+    static String getTableName(Class<? extends QEntity> entityType) {
         QFrom from = entityType.getAnnotation(QFrom.class);
-        this.definition = from.value();
+        return from.value();
     }
+    public final Class<? extends QEntity> getEntityType() { return entityType; }
 
-
-    public Class<? extends QEntity> getEntityType() { return entityType; }
-
-    public String resolveProperty(String property) {
+    public String translateProperty(String property) {
         int p = property.lastIndexOf('.');
-        String view = property.substring(0, p);
-        String name = property.substring(p+1);
-        String[] joinStack = view.split("@");
-        HqRelation relation = getRelation(this, joinStack);
-        String resolved = relation.properties.get(name);
-        return resolved != null ? resolved : property;
+        if (p > 0) {
+            String alias = property.substring(0, p);
+            String name = property.substring(p + 1);
+            String[] joinStack = alias.split("@");
+            QView view = getView(this, joinStack);
+            property = view.translateProperty(name);
+        } else {
+            property = properties.get(property);
+        }
+        return property;
     }
 
-    private static HqRelation getRelation(HqRelation hqRelation, String[] joinStack) {
+    private static QView getView(QView view, String[] joinStack) {
         for (String alias : joinStack) {
             if (alias.isEmpty()) continue;
-            hqRelation.initialize();
-            hqRelation = hqRelation.joins.get(alias).getTargetRelation();
+            view.initialize();
+            view = view.getJoin(alias).getTargetRelation();
         }
-        return hqRelation;
+        return view;
     }
 
+    public QLambda getLambda(String alias) {
+        return lambdas.get(alias);
+    }
     public QLambda getLambda(String[] joinPath, String property) {
         initialize();
-        HqRelation relation = getRelation(this, joinPath);
-        return relation.lambdas.get(property);
+        QView view = getView(this, joinPath);
+        return view.getLambda(property);
     }
 
-    public static HqRelation getRelation(Class<? extends QEntity> clazz) { return relations.get(clazz); }
+    public static HSchema getView(Class<? extends QEntity> clazz) { return relations.get(clazz); }
 
-    public static HqRelation registerRelation(Class<? extends QEntity> clazz) {
-        HqRelation relation = relations.get(clazz);
+    public static HSchema registerSchema(Class<? extends QEntity> clazz) {
+        HSchema relation = relations.get(clazz);
         if (relation == null) {
             synchronized (relations) {
                 relation = relations.get(clazz);
                 if (relation == null) {
-                    relation = new HqRelation(clazz);
+                    relation = new HSchema(clazz);
                     relations.put(clazz, relation);
                 }
             }
@@ -67,7 +76,7 @@ public class HqRelation {
         return relation;
     }
 
-    private synchronized void initialize() {
+    public synchronized void initialize() {
         if (joins != null) return;
 
         HashMap<String, QJoin> joins = new HashMap<>();
@@ -97,7 +106,7 @@ public class HqRelation {
     }
 
     public String getJoinTarget() {
-        return definition;
+        return super.getQuery();
     }
 
     public QJoin getJoin(String join) {

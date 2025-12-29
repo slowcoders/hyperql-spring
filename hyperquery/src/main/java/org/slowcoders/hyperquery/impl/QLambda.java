@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class QLambda {
-    private HqRelation relation;
+    private HSchema relation;
     private String name;
     private final int argCount;
     private final String rawStatement;
@@ -45,7 +45,7 @@ public class QLambda {
         return sb.toString();
     }
 
-    public void init(HqRelation relation, String name) {
+    public void init(HSchema relation, String name) {
         this.relation = relation;
         this.name = name;
     }
@@ -155,7 +155,7 @@ public class QLambda {
         @Override
         public String visitProperty(LambdaParser.PropertyContext ctx) {
             String property = ctx.getText();
-            String v = relation.resolveProperty(property);
+            String v = relation.translateProperty(property);
             sb.addText(v);
             return "";
         }

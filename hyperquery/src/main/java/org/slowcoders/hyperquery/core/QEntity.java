@@ -1,8 +1,6 @@
 package org.slowcoders.hyperquery.core;
 
-import org.slowcoders.hyperquery.impl.QAttribute;
-import org.slowcoders.hyperquery.impl.QJoin;
-import org.slowcoders.hyperquery.impl.QLambda;
+import org.slowcoders.hyperquery.impl.*;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -19,17 +17,26 @@ public interface QEntity {
         String value();
     }
 
+    static void init() {}
     class Join extends QJoin {
-        private Join(Class<? extends QEntity> targetEntity, String joinOn, boolean single) {
-            super(targetEntity, joinOn, single);
+        private Join(QView view, String joinOn, boolean single) {
+            super(view, joinOn, single);
         }
 
         public static Join toOne(Class<? extends QEntity> targetEntity, String joinOn) {
-            return new Join(targetEntity, joinOn, true);
+            return new Join(HSchema.registerSchema(targetEntity), joinOn, true);
         }
 
         public static Join toMany(Class<? extends QEntity> targetEntity, String joinOn) {
-            return new Join(targetEntity, joinOn, false);
+            return new Join(HSchema.registerSchema(targetEntity), joinOn, false);
+        }
+
+        public static Join toOne(QView view, String joinOn) {
+            return new Join(view, joinOn, true);
+        }
+
+        public static Join toMany(QView view, String joinOn) {
+            return new Join(view, joinOn, false);
         }
     }
 

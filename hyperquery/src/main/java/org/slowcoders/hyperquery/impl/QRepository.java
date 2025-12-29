@@ -1,8 +1,11 @@
-package org.slowcoders.hyperquery.core;
+package org.slowcoders.hyperquery.impl;
 
 
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
+import org.slowcoders.hyperquery.core.QEntity;
+import org.slowcoders.hyperquery.core.QFilter;
+import org.slowcoders.hyperquery.core.QRecord;
 
 public interface QRepository<ENTITY extends QEntity> {
 

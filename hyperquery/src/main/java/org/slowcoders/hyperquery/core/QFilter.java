@@ -1,6 +1,6 @@
 package org.slowcoders.hyperquery.core;
 
-import org.slowcoders.hyperquery.impl.HqRelation;
+import org.slowcoders.hyperquery.impl.HSchema;
 import org.slowcoders.hyperquery.impl.QCriteria;
 
 import java.lang.annotation.Repeatable;
@@ -46,11 +46,11 @@ public class QFilter<T extends QEntity> {
     //==============================================================================//
 
     private String __sql__;
-    private final HqRelation relation;
+    private final HSchema relation;
 
 
     public QFilter(Class<T> clazz) {
-        this.relation = HqRelation.registerRelation(clazz);
+        this.relation = HSchema.registerSchema(clazz);
     }
 
     public Object getFromStatement() {
@@ -61,7 +61,7 @@ public class QFilter<T extends QEntity> {
         return this.__sql__;
     }
 
-    public final HqRelation getRelation() {
+    public final HSchema getRelation() {
         return relation;
     }
 

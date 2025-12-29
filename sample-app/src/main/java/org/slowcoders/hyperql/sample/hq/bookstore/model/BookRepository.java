@@ -1,7 +1,7 @@
 package org.slowcoders.hyperql.sample.hq.bookstore.model;
 
 import org.apache.ibatis.annotations.Mapper;
-import org.slowcoders.hyperquery.core.QRepository;
+import org.slowcoders.hyperquery.impl.QRepository;
 
 @Mapper
 public interface BookRepository extends QRepository<Book> {

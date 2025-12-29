@@ -1,4 +1,7 @@
-package org.slowcoders.hyperquery.core;
+package org.slowcoders.hyperquery.impl;
+
+import org.slowcoders.hyperquery.core.QEntity;
+import org.slowcoders.hyperquery.core.QFilter;
 
 import java.lang.reflect.Field;
 import java.text.MessageFormat;
