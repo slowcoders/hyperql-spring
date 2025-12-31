@@ -10,8 +10,9 @@ import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
 
-public class HSchema extends QView {
+public class HSchema extends HModel {
     private final Class<? extends QView> entityType;
+    private final String tableName;
     private Map<String, QJoin> joins;
     private Map<String, QLambda> lambdas;
     private Map<String, String> properties;
@@ -19,8 +20,8 @@ public class HSchema extends QView {
     private static final HashMap<Class<?>, HSchema> relations = new HashMap<>();
 
     public HSchema(Class<? extends QView> entityType) {
-        super(getTableName(entityType));
         this.entityType = entityType;
+        this.tableName = (getTableName(entityType));
     }
 
     static String getTableName(Class<? extends QView> entityType) {
@@ -35,21 +36,21 @@ public class HSchema extends QView {
             String alias = property.substring(0, p);
             String name = property.substring(p + 1);
             String[] joinStack = alias.split("@");
-            QView view = getView(this, joinStack);
-            property = view.translateProperty(name);
+            HModel model = getModel(this, joinStack);
+            property = model.translateProperty(name);
         } else {
             property = properties.get(property);
         }
         return property;
     }
 
-    private static QView getView(QView view, String[] joinStack) {
+    private static HModel getModel(HModel model, String[] joinStack) {
         for (String alias : joinStack) {
             if (alias.isEmpty()) continue;
-            view.initialize();
-            view = view.getJoin(alias).getTargetRelation();
+            model.initialize();
+            model = model.getJoin(alias).getTargetRelation();
         }
-        return view;
+        return model;
     }
 
     public QLambda getLambda(String alias) {
@@ -57,11 +58,11 @@ public class HSchema extends QView {
     }
     public QLambda getLambda(String[] joinPath, String property) {
         initialize();
-        QView view = getView(this, joinPath);
-        return view.getLambda(property);
+        HModel model = getModel(this, joinPath);
+        return model.getLambda(property);
     }
 
-    public static HSchema getView(Class<? extends QView> clazz) { return relations.get(clazz); }
+    public static HSchema getSchema(Class<? extends QView> clazz) { return relations.get(clazz); }
 
     public static HSchema registerSchema(Class<? extends QView> clazz) {
         HSchema relation = relations.get(clazz);
@@ -106,8 +107,19 @@ public class HSchema extends QView {
         this.joins = joins;
     }
 
-    public String getJoinTarget() {
-        return super.getQuery();
+    @Override
+    protected HSchema loadSchema() {
+        return this;
+    }
+
+    @Override
+    protected String getQuery() {
+        return "";
+    }
+
+    @Override
+    protected String getTableName() {
+        return this.tableName;
     }
 
     public QJoin getJoin(String join) {

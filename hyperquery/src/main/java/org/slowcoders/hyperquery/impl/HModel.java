@@ -4,24 +4,24 @@ import org.slowcoders.hyperquery.core.QJoin;
 
 public abstract class HModel {
 
-    protected abstract HSchema loadSchema();
-
     public void initialize() {
     }
 
-    public abstract String getQuery();
+    protected abstract HSchema loadSchema();
 
-    public abstract String getTableName();
+    protected abstract String getQuery();
 
-    public String translateProperty(String property) {
+    protected abstract String getTableName();
+
+    protected String translateProperty(String property) {
         return property;
     }
 
-    public QJoin getJoin(String alias) {
+    protected QJoin getJoin(String alias) {
         return null;
     }
 
-    public QLambda getLambda(String alias) {
+    protected QLambda getLambda(String alias) {
         return null;
     }
 }

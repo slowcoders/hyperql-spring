@@ -18,12 +18,12 @@ public class QInlineView extends HModel {
     }
 
     @Override
-    public String getQuery() {
+    protected String getQuery() {
         return viewDefinition;
     }
 
     @Override
-    public String getTableName() {
+    protected String getTableName() {
         return "";
     }
 }
