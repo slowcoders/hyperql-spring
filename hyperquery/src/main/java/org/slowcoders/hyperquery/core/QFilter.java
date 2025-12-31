@@ -10,9 +10,15 @@ import java.lang.annotation.RetentionPolicy;
 public class QFilter<T extends QEntity> {
 
     @Retention(RetentionPolicy.RUNTIME)
-    public @interface Condition {
+    public @interface Predicate {
         /** condition expression to filtering */
         String value();
+
+        boolean bypassEmptyInput() default true;
+
+        String convertInput() default "";
+
+        String inputType() default "";
     }
 
     @Retention(RetentionPolicy.RUNTIME)

@@ -6,13 +6,19 @@ import org.apache.ibatis.mapping.BoundSql;
 import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.ResultMap;
 import org.apache.ibatis.mapping.SqlSource;
+import org.apache.ibatis.parsing.GenericTokenParser;
+import org.apache.ibatis.parsing.TokenHandler;
 import org.apache.ibatis.parsing.XNode;
-import org.apache.ibatis.scripting.xmltags.XMLScriptBuilder;
+import org.apache.ibatis.scripting.defaults.RawSqlSource;
+import org.apache.ibatis.scripting.xmltags.*;
 import org.apache.ibatis.session.Configuration;
+import org.apache.ibatis.type.SimpleTypeRegistry;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.slowcoders.hyperquery.core.*;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.*;
 
 public class QStore<E extends QEntity> {
@@ -39,13 +45,39 @@ public class QStore<E extends QEntity> {
         this.repositoryType = repositoryType;
     }
 
+    private static String getColumnName(Field f) {
+        QColumn anno = f.getAnnotation(QColumn.class);
+        if (anno != null) return anno.value();
+        QEntity.PKColumn pk = f.getAnnotation(QEntity.PKColumn.class);
+        if (pk != null) return pk.value();
+        QEntity.TColumn tcol = f.getAnnotation(QEntity.TColumn.class);
+        if (tcol != null) return tcol.value();
+        return null;
+    }
+
+    private static Class<?> getElementType(Field f) {
+        if (f.getType().isArray()) return f.getType().getComponentType();
+
+        Type type = f.getGenericType();
+        if (type instanceof ParameterizedType) {
+            ParameterizedType pType = (ParameterizedType) type;
+            Type[] typeArguments = pType.getActualTypeArguments();
+            if (typeArguments.length > 0 && typeArguments[0] instanceof Class) {
+                return (Class<?>) typeArguments[0];
+            }
+        }
+        return f.getType();
+    }
+
+    private static boolean isCollectionType(Field f) {
+        return f.getType().isArray() || Collection.class.isAssignableFrom(f.getType());
+    }
     private void addSelection(Class<?> clazz, String propertyPrefix, String fromAlias) {
         for (Field f : clazz.getDeclaredFields()) {
-            QColumn anno = f.getAnnotation(QColumn.class);
-            if (anno == null) continue;
-            String columnName = anno.value();
-            Class<?> propertyType = f.getType();
-            if (!QRecord.class.isAssignableFrom(propertyType)) {
+            String columnName = getColumnName(f);
+            if (columnName == null) continue;
+            Class<?> elementType = getElementType(f);
+            if (!QRecord.class.isAssignableFrom(elementType)) {
                 int idx_dot = columnName.indexOf(".");
                 if (idx_dot > 0) {
                     String alias = columnName.substring(0, idx_dot);
@@ -53,12 +85,18 @@ public class QStore<E extends QEntity> {
                 } else {
                     columnName = fromAlias + '.' + columnName;
                 }
+                if (isCollectionType(f)) {
+
+                }
                 columnMappings.add(new ColumnMapping(columnName, propertyPrefix + f.getName()));
-            } else if (!usedTables.contains(propertyType)) {
+            } else if (!usedTables.contains(elementType)) {
                 // join loop 방지.
-                usedTables.add((Class<QRecord>) propertyType);
+                usedTables.add((Class<QRecord>) elementType);
+                if (isCollectionType(f)) {
+
+                }
                 String alias = propertyPrefix.isEmpty() ? columnName : fromAlias + '@' + columnName;
-                this.addSelection(propertyType, propertyPrefix + f.getName() + '.', alias);
+                this.addSelection(elementType, propertyPrefix + f.getName() + '.', alias);
                 joinAliases.add(alias);
             }
         }
@@ -82,11 +120,16 @@ public class QStore<E extends QEntity> {
         sb.setLength(sb.length() - 2);
         sb.append('\n');
 
+        HashMap<String, HModel> ctes = new HashMap<>();
         HSchema relation = filter.getRelation();
         sb.append("from ").append(relation.getJoinTarget()).append(" @").append('\n');
         for (String alias : joinAliases) {
             QJoin join = relation.getJoin(alias);
-            sb.append("left join ").append(join.getTargetRelation().getQuery()).append(" ").append(alias);
+            String tableName = join.getTargetRelation().getTableName();
+            if (tableName.length() == 0) {
+                ctes.put(alias, join.getTargetRelation());
+            }
+            sb.append("left join ").append(tableName).append(" ").append(alias);
             // replace #*. -> "@" + join + "."
             sb.append("\n on ").append(join.getJoinCriteria().replace("#", alias)).append('\n');
         }
@@ -98,6 +141,17 @@ public class QStore<E extends QEntity> {
             sql = sql.replaceAll(join + "\\b", alias + "_" + (++idxAlias));
         }
         sql = sql.replaceAll("@(?=\\W)", "t_0");
+
+        if (ctes.size() > 0) {
+            StringBuilder sb2 = new StringBuilder("WITH ");
+            for (Map.Entry<String, HModel> entry : ctes.entrySet()) {
+                sb2.append("AS ").append(entry.getKey()).append(" (\n");
+                sb2.append(entry.getValue().getQuery()).append("), ");
+            }
+            sb2.setLength(sb2.length() - 2);
+            sql = sb2.append('\n').append(sql).toString();
+        }
+
         filter.setSql(sql);
         String id = registerMapper(null, filter.getRelation(), resultType);
 
@@ -201,4 +255,46 @@ public class QStore<E extends QEntity> {
 
         System.out.println(res);
     }
+
+    static class ScriptBuilder extends XMLScriptBuilder {
+        private final XNode rootSqlNode;
+
+        ScriptBuilder(Configuration configuration, XNode rootSqlNode) {
+            super(configuration, rootSqlNode);
+            this.rootSqlNode = rootSqlNode;
+        }
+
+        public SqlSource parseScriptNode(Object parameterObject) {
+            if (false) {
+                super.parseScriptNode();
+            }
+            MixedSqlNode nodes = super.parseDynamicTags(rootSqlNode);
+            return buildScriptNode(nodes, parameterObject);
+        }
+
+        public SqlSource buildScriptNode(SqlNode nodes, Object parameterObject) {
+            DynamicContext context = new DynamicContext(configuration, parameterObject);
+            nodes.apply(context);
+            String sql = context.getSql();
+            // context 의 sql 을 변경하고, 다시 작업.
+            GenericTokenParser parser = new GenericTokenParser("#{", "}", new TokenHandler() {
+
+                @Override
+                public String handleToken(String content) {
+                    Object parameter = context.getBindings().get("_parameter");
+                    if (parameter == null) {
+                        context.getBindings().put("value", null);
+                    } else if (SimpleTypeRegistry.isSimpleType(parameter.getClass())) {
+                        context.getBindings().put("value", parameter);
+                    }
+                    Object value = OgnlCache.getValue(content, context.getBindings());
+                    return String.valueOf(value); // issue #274 return "" instead of "null"
+                }
+            });
+            String converted = parser.parse(sql);
+            TextSqlNode textNode = new TextSqlNode(converted);
+            return new RawSqlSource(configuration, textNode, parameterObject.getClass());
+        }
+    }
+
 }

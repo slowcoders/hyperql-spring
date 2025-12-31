@@ -2,6 +2,7 @@ package org.slowcoders.hyperquery.impl;
 
 import org.slowcoders.hyperquery.core.QEntity;
 import org.slowcoders.hyperquery.core.QFrom;
+import org.slowcoders.hyperquery.core.QJoin;
 import org.slowcoders.hyperquery.core.QView;
 
 import java.lang.reflect.Field;
@@ -10,23 +11,23 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class HSchema extends QView {
-    private final Class<? extends QEntity> entityType;
+    private final Class<? extends QView> entityType;
     private Map<String, QJoin> joins;
     private Map<String, QLambda> lambdas;
     private Map<String, String> properties;
 
     private static final HashMap<Class<?>, HSchema> relations = new HashMap<>();
 
-    public HSchema(Class<? extends QEntity> entityType) {
+    public HSchema(Class<? extends QView> entityType) {
         super(getTableName(entityType));
         this.entityType = entityType;
     }
 
-    static String getTableName(Class<? extends QEntity> entityType) {
+    static String getTableName(Class<? extends QView> entityType) {
         QFrom from = entityType.getAnnotation(QFrom.class);
         return from.value();
     }
-    public final Class<? extends QEntity> getEntityType() { return entityType; }
+    public final Class<? extends QView> getEntityType() { return entityType; }
 
     public String translateProperty(String property) {
         int p = property.lastIndexOf('.');
@@ -60,9 +61,9 @@ public class HSchema extends QView {
         return view.getLambda(property);
     }
 
-    public static HSchema getView(Class<? extends QEntity> clazz) { return relations.get(clazz); }
+    public static HSchema getView(Class<? extends QView> clazz) { return relations.get(clazz); }
 
-    public static HSchema registerSchema(Class<? extends QEntity> clazz) {
+    public static HSchema registerSchema(Class<? extends QView> clazz) {
         HSchema relation = relations.get(clazz);
         if (relation == null) {
             synchronized (relations) {

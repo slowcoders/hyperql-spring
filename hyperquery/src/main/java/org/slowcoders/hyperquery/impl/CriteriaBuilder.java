@@ -31,7 +31,7 @@ public class CriteriaBuilder {
             for (Field f : filter.getClass().getDeclaredFields()) {
                 QFilter.Begin[] beginStack = f.getAnnotationsByType(QFilter.Begin.class);
                 QFilter.EndOf[] endStack = f.getAnnotationsByType(QFilter.EndOf.class);
-                QFilter.Condition condition = f.getAnnotation(QFilter.Condition.class);
+                QFilter.Predicate predicate = f.getAnnotation(QFilter.Predicate.class);
                 QFilter.EmbedFilter subFilter = f.getAnnotation(QFilter.EmbedFilter.class);
 //                QFilter.LambdaCondition lambda = f.getAnnotation(QFilter.LambdaCondition.class);
 
@@ -55,11 +55,11 @@ public class CriteriaBuilder {
                 Object value = f.get(filter);
                 if (ObjectUtils.isEmpty(value)) continue;
 
-                if (condition != null) {
+                if (predicate != null) {
                     if (subFilter != null) {
                         throw new IllegalStateException("Invalid @Condition + @EmbedFilter pair on " + f.getName());
                     }
-                    String expr = condition.value();
+                    String expr = predicate.value();
                     if (false) {
                         expr = parsePredicate(null, f.getName(), expr);
                     }
