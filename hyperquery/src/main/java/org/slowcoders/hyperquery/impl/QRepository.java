@@ -7,7 +7,7 @@ import org.slowcoders.hyperquery.core.QEntity;
 import org.slowcoders.hyperquery.core.QFilter;
 import org.slowcoders.hyperquery.core.QRecord;
 
-public interface QRepository<ENTITY extends QEntity> {
+public interface QRepository {
 
     @Select("${__sql__}")
     Object __select__(Object params);
@@ -26,7 +26,7 @@ public interface QRepository<ENTITY extends QEntity> {
             RETURNING *
         )
     """)
-    Object __insert_or_update__(ENTITY entity);
+    Object __insert_or_update__(QEntity entity);
 
     @Update("""
         WITH _DATA AS (
@@ -42,5 +42,5 @@ public interface QRepository<ENTITY extends QEntity> {
             RETURNING *
         )
     """)
-    <T extends ENTITY> QRecord<T> __update__(QRecord<T> record, QFilter<T> filter);
+    QRecord<?> __update__(QRecord<?> record, QFilter<?> filter);
 }

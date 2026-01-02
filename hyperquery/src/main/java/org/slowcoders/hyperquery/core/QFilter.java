@@ -7,7 +7,7 @@ import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-public class QFilter<T extends QEntity> {
+public class QFilter<T extends QRecord<?>> {
 
     @Retention(RetentionPolicy.RUNTIME)
     public @interface Predicate {

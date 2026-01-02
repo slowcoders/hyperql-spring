@@ -1,9 +1,8 @@
 package org.slowcoders.hyperquery.impl;
 
-import org.slowcoders.hyperquery.core.QEntity;
 import org.slowcoders.hyperquery.core.QFrom;
 import org.slowcoders.hyperquery.core.QJoin;
-import org.slowcoders.hyperquery.core.QView;
+import org.slowcoders.hyperquery.core.QRecord;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -11,7 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class HSchema extends HModel {
-    private final Class<? extends QView> entityType;
+    private final Class<? extends QRecord> entityType;
     private final String tableName;
     private Map<String, QJoin> joins;
     private Map<String, QLambda> lambdas;
@@ -19,16 +18,16 @@ public class HSchema extends HModel {
 
     private static final HashMap<Class<?>, HSchema> relations = new HashMap<>();
 
-    public HSchema(Class<? extends QView> entityType) {
+    public HSchema(Class<? extends QRecord> entityType) {
         this.entityType = entityType;
         this.tableName = (getTableName(entityType));
     }
 
-    static String getTableName(Class<? extends QView> entityType) {
+    static String getTableName(Class<? extends QRecord> entityType) {
         QFrom from = entityType.getAnnotation(QFrom.class);
         return from.value();
     }
-    public final Class<? extends QView> getEntityType() { return entityType; }
+    public final Class<? extends QRecord> getEntityType() { return entityType; }
 
     public String translateProperty(String property) {
         int p = property.lastIndexOf('.');
@@ -62,9 +61,9 @@ public class HSchema extends HModel {
         return model.getLambda(property);
     }
 
-    public static HSchema getSchema(Class<? extends QView> clazz) { return relations.get(clazz); }
+    public static HSchema getSchema(Class<? extends QRecord> clazz) { return relations.get(clazz); }
 
-    public static HSchema registerSchema(Class<? extends QView> clazz) {
+    public static HSchema registerSchema(Class<? extends QRecord> clazz) {
         HSchema relation = relations.get(clazz);
         if (relation == null) {
             synchronized (relations) {
@@ -124,6 +123,14 @@ public class HSchema extends HModel {
 
     public QJoin getJoin(String join) {
         this.initialize();
+        int next = join.indexOf('@', 1);
+        String nextJoin = null;
+        if (next > 0) {
+            nextJoin = join.substring(next);
+            join = join.substring(0, next);
+            QJoin subJoin = getJoin(join);
+            return subJoin.getTargetRelation().getJoin(nextJoin);
+        }
         return joins.get(join);
     }
 }

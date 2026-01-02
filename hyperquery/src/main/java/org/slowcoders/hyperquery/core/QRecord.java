@@ -1,39 +1,46 @@
 package org.slowcoders.hyperquery.core;
 
-import org.slowcoders.hyperquery.impl.*;
+import org.slowcoders.hyperquery.impl.HSchema;
+import org.slowcoders.hyperquery.impl.QAttribute;
+import org.slowcoders.hyperquery.impl.QLambda;
+import org.slowcoders.hyperquery.impl.QRepository;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-public interface QRecord<T extends QView> {
-    @Retention(RetentionPolicy.RUNTIME)
-    @interface Property {
-        String value();
-    }
+public interface QRecord<T extends QRecord<T>> {
 
-    class Join extends QJoin {
-        private Join(QView view, String joinOn, boolean single) {
+//    @Retention(RetentionPolicy.RUNTIME)
+//    @interface Property {
+//        String value();
+//    }
+
+    public static class Join extends QJoin {
+        private Join(QInlineView view, String joinOn, boolean single) {
             super(view, joinOn, single);
         }
-
-        public static Join toOne(Class<? extends QView> targetEntity, String joinOn) {
-            return new Join(HSchema.registerSchema(targetEntity), joinOn, true);
+        private Join(Class<? extends QRecord> recordType, String joinOn, boolean single) {
+            super(recordType, joinOn, single);
         }
 
-        public static Join toMany(Class<? extends QView> targetEntity, String joinOn) {
-            return new Join(HSchema.registerSchema(targetEntity), joinOn, false);
+        public static Join toOne(Class<? extends QRecord> recordType, String joinOn) {
+            return new Join(recordType, joinOn, true);
         }
 
-        public static Join toOne(QView view, String joinOn) {
+        public static Join toMany(Class<? extends QRecord> recordType, String joinOn) {
+            return new Join(recordType, joinOn, false);
+        }
+
+        public static Join toOne(QInlineView view, String joinOn) {
             return new Join(view, joinOn, true);
         }
 
-        public static Join toMany(QView view, String joinOn) {
+        public static Join toMany(QInlineView view, String joinOn) {
             return new Join(view, joinOn, false);
         }
     }
 
-    class Property extends QAttribute {
+    public static class Property extends QAttribute {
         private Property(String statement) {
             super(statement);
         }
@@ -43,7 +50,7 @@ public interface QRecord<T extends QView> {
         }
     }
 
-    class Lambda extends QLambda {
+    public static class Lambda extends QLambda {
         private Lambda(int argCount, String statement) {
             super(argCount, statement);
         }

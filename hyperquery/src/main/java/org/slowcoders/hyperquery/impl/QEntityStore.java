@@ -21,24 +21,24 @@ public class QEntityStore {
     public QEntityStore(Class<? extends QEntity> entityType, String prefix) {
         this.entityType = entityType;
 
-        try {
-            for (Field f : entityType.getDeclaredFields()) {
-                QEntity.PKColumn pk = f.getAnnotation(QEntity.PKColumn.class);
-                QEntity.TColumn column = f.getAnnotation(QEntity.TColumn.class);
+            try {
+                for (Field f : entityType.getDeclaredFields()) {
+                    QEntity.PKColumn pk = f.getAnnotation(QEntity.PKColumn.class);
+                    QEntity.TColumn column = f.getAnnotation(QEntity.TColumn.class);
 
-                f.setAccessible(true);
+                    f.setAccessible(true);
 
-                if (pk != null) {
-                    pkMappings.add(new ColumnMapping(pk.value(), f));
-                    columnMappings.add(new ColumnMapping(pk.value(), f));
+                    if (pk != null) {
+                        pkMappings.add(new ColumnMapping(pk.value(), f));
+                        columnMappings.add(new ColumnMapping(pk.value(), f));
+                    }
+                    else if (column != null) {
+                        columnMappings.add(new ColumnMapping(column.value(), f));
+                    }
                 }
-                else if (column != null) {
-                    columnMappings.add(new ColumnMapping(column.value(), f));
-                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
             }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
     }
 
     private static final String updateTemplate = """

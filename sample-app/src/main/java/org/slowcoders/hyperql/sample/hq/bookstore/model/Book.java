@@ -5,18 +5,27 @@ import lombok.Getter;
 import lombok.Setter;
 import org.slowcoders.hyperquery.core.QEntity;
 import org.slowcoders.hyperquery.core.QFrom;
+import org.slowcoders.hyperquery.core.QInlineView;
 
+import java.util.List;
 import java.util.Set;
 
 
 @QFrom("bookstore.book")
-public class Book implements QEntity {
+public class Book implements QEntity<Book> {
 
     static final Join author_ = Join.toOne(Author.class, "#.id = @.author_id");
+    static final Join bookOrder = Join.toMany(new QInlineView("""
+            select book_id, customer.* from bookstore.customer customer
+            join bookstore.book_order order_ on order_.customer_id = customer.id
+        """),
+        "#.book_id = @.id");
 
     @Getter @Setter
     @Id
+    @PKColumn("id")
     @Column(name = "id", nullable = false)
+
     private Long id;
 
     @Getter @Setter
@@ -45,6 +54,7 @@ public class Book implements QEntity {
                     @UniqueConstraint(name ="customer_id__book_id__uindex", columnNames = {"customer_id", "book_id"})
             },
             joinColumns = @JoinColumn(name="book_id"), inverseJoinColumns = @JoinColumn(name="customer_id"))
-    private Set<Customer> customer_;
+    @TColumn("@bookOrder")
+    private List<Customer> customer_;
 
 }

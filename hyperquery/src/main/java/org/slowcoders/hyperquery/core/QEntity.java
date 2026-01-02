@@ -1,11 +1,9 @@
 package org.slowcoders.hyperquery.core;
 
-import org.slowcoders.hyperquery.impl.*;
-
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-public class QEntity extends QView {
+public interface QEntity<T extends QEntity<T>> extends QRecord<T> {
 
     @Retention(RetentionPolicy.RUNTIME)
     @interface TColumn {

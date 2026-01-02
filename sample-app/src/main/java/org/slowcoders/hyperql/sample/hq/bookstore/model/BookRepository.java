@@ -4,5 +4,5 @@ import org.apache.ibatis.annotations.Mapper;
 import org.slowcoders.hyperquery.impl.QRepository;
 
 @Mapper
-public interface BookRepository extends QRepository<Book> {
+public interface BookRepository extends QRepository {
 }

@@ -3,11 +3,12 @@ package org.slowcoders.hyperql.sample.hq.bookstore.model;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.slowcoders.hyperquery.core.QEntity;
 
 import java.util.Set;
 
 
-public class Customer implements java.io.Serializable {
+public class Customer implements QEntity<Customer> {
     @Getter
     @Setter
     @Id
@@ -26,10 +27,10 @@ public class Customer implements java.io.Serializable {
     @Column(name = "mass", nullable = true)
     private Float mass;
 
-    @Getter @Setter
-    @Column(name = "memo", nullable = true, columnDefinition = "jsonb")
-    @org.hibernate.annotations.Type(io.hypersistence.utils.hibernate.type.json.JsonType.class)
-    private com.fasterxml.jackson.databind.JsonNode memo;
+//    @Getter @Setter
+//    @Column(name = "memo", nullable = true, columnDefinition = "jsonb")
+//    @org.hibernate.annotations.Type(io.hypersistence.utils.hibernate.type.json.JsonType.class)
+//    private com.fasterxml.jackson.databind.JsonNode memo;
 
     @Getter @Setter
     @ManyToMany(fetch = FetchType.LAZY)

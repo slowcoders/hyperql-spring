@@ -6,7 +6,7 @@ import org.slowcoders.hyperquery.impl.HSchema;
 public class QInlineView extends HModel {
 
     private final String viewDefinition;
-    private static final HSchema schema = HSchema.registerSchema(QView.class);
+    private static final HSchema schema = HSchema.registerSchema(HiddenView.class);
 
     public QInlineView(String query) {
         viewDefinition = query;
@@ -26,4 +26,7 @@ public class QInlineView extends HModel {
     protected String getTableName() {
         return "";
     }
+
+    @QFrom("")
+    private static class HiddenView implements QEntity<HiddenView> {}
 }
