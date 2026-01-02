@@ -1,5 +1,6 @@
 package org.slowcoders.hyperquery.impl;
 
+import org.slowcoders.hyperquery.core.QEntity;
 import org.slowcoders.hyperquery.core.QFrom;
 import org.slowcoders.hyperquery.core.QJoin;
 import org.slowcoders.hyperquery.core.QRecord;
@@ -61,9 +62,9 @@ public class HSchema extends HModel {
         return model.getLambda(property);
     }
 
-    public static HSchema getSchema(Class<? extends QRecord> clazz) { return relations.get(clazz); }
+    public static HSchema getSchema(Class<? extends QEntity<?>> clazz) { return relations.get(clazz); }
 
-    public static HSchema registerSchema(Class<? extends QRecord> clazz) {
+    public static HSchema registerSchema(Class<? extends QEntity<?>> clazz) {
         HSchema relation = relations.get(clazz);
         if (relation == null) {
             synchronized (relations) {

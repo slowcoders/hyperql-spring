@@ -134,8 +134,8 @@ public class QEntityStore {
         String updateCondition = genUpdateWhere(sb, 0);
         String sql = MessageFormat.format(updateTemplate,
                 tableName, // {0}
-                filter.getFromStatement(), // {1}
-                filter.getWhereStatement(), // {2}
+                tableName, // {1}
+                filter.toString(), // {2}
                 values, // {3}
                 updateSet, // {4}
                 updateCondition); // {5}
@@ -214,8 +214,8 @@ public class QEntityStore {
 
         String sql = MessageFormat.format(deleteTemplate,
                 tableName,
-                filter.getFromStatement(),
-                filter.getWhereStatement());
+                tableName,
+                filter.toString());
     }
 
 

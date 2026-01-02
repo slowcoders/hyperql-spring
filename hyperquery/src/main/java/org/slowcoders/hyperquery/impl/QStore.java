@@ -17,9 +17,10 @@ import org.slowcoders.hyperquery.core.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
 import java.util.*;
 
-public class QStore<E extends QRecord<E>> {
+public class QStore<E extends QEntity<E>> {
     private final Configuration configuration;
     private final SqlSessionTemplate sqlSessionTemplate;
     private final List<ColumnMapping> columnMappings = new ArrayList<>();
@@ -119,6 +120,18 @@ public class QStore<E extends QRecord<E>> {
         return res.get(0);
     }
 
+    HSchema getSchema(Class<?> filterType) {
+        Type superclass = filterType.getGenericSuperclass();
+
+        if (superclass instanceof ParameterizedType) {
+            Type[] params = ((ParameterizedType) superclass).getActualTypeArguments();
+            Class<?> genericClass = (Class<?>) params[0]; // MyEntity.class
+            HSchema schema = HSchema.registerSchema((Class<? extends QEntity<?>>) genericClass);
+            return schema;
+        }
+        return null;
+    }
+
     public <R extends QRecord<E>> List<R> selectList(Class<R> resultType, QFilter<E> filter) {
         this.addSelection(resultType, "", "@");
 
@@ -131,7 +144,7 @@ public class QStore<E extends QRecord<E>> {
         sb.append('\n');
 
         HashMap<String, HModel> ctes = new HashMap<>();
-        HSchema relation = filter.getRelation();
+        HSchema relation = getSchema(filter.getClass());// filter.getRelation();
         sb.append("from ").append(relation.getTableName()).append(" @").append('\n');
         for (String alias : joinAliases) {
             QJoin join = relation.getJoin(alias);
@@ -168,10 +181,9 @@ public class QStore<E extends QRecord<E>> {
         }
         sql = sql.replaceAll("@(?=\\W)", "t_0");
 
+        String id = registerMapper(null, relation, resultType);
 
         filter.setSql(sql);
-        String id = registerMapper(null, filter.getRelation(), resultType);
-
         Object res = sqlSessionTemplate.selectList(id, filter);
         return (List) res;
     }

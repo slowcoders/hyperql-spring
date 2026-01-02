@@ -11,7 +11,4 @@ public class BookFilter extends QFilter<Book> {
     @Predicate("title ilike '%' || ? || '%'")
     private String title;
 
-    BookFilter() {
-        super(Book.class);
-    }
 }

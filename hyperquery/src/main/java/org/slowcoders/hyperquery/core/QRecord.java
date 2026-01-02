@@ -19,15 +19,15 @@ public interface QRecord<T extends QRecord<T>> {
         private Join(QInlineView view, String joinOn, boolean single) {
             super(view, joinOn, single);
         }
-        private Join(Class<? extends QRecord> recordType, String joinOn, boolean single) {
+        private Join(Class<? extends QEntity<?>> recordType, String joinOn, boolean single) {
             super(recordType, joinOn, single);
         }
 
-        public static Join toOne(Class<? extends QRecord> recordType, String joinOn) {
+        public static Join toOne(Class<? extends QEntity<?>> recordType, String joinOn) {
             return new Join(recordType, joinOn, true);
         }
 
-        public static Join toMany(Class<? extends QRecord> recordType, String joinOn) {
+        public static Join toMany(Class<? extends QEntity<?>> recordType, String joinOn) {
             return new Join(recordType, joinOn, false);
         }
 

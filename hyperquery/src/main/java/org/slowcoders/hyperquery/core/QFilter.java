@@ -7,7 +7,7 @@ import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-public class QFilter<T extends QRecord<?>> {
+public class QFilter<T extends QEntity<?>> {
 
     @Retention(RetentionPolicy.RUNTIME)
     public @interface Predicate {
@@ -52,25 +52,6 @@ public class QFilter<T extends QRecord<?>> {
     //==============================================================================//
 
     private String __sql__;
-    private final HSchema relation;
-
-
-    public QFilter(Class<T> clazz) {
-        this.relation = HSchema.registerSchema(clazz);
-    }
-
-    public Object getFromStatement() {
-        return this.__sql__;
-    }
-
-    public Object getWhereStatement() {
-        return this.__sql__;
-    }
-
-    public final HSchema getRelation() {
-        return relation;
-    }
-
 
     /*internal*/ public final void setSql(String sql) {
         this.__sql__ = sql;

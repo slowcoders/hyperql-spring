@@ -16,17 +16,17 @@ public class QJoin {
     private final String joinCriteria;
     private HModel model;
     private final boolean toUnique;
-    private Class<? extends QRecord> viewType;
+    private Class<? extends QEntity<?>> viewType;
 
     // Cross Join 은 지원하지 읺는다.
     protected QJoin(QInlineView inlineView, String joinOn, boolean toUnique) {
-        this.viewType = QRecord.class;
+        this.viewType = HiddenView.class;
         this.model = inlineView;
         this.joinCriteria = joinOn;
         this.toUnique = toUnique;
     }
 
-    protected QJoin(Class<? extends QRecord> viewType, String joinOn, boolean toUnique) {
+    protected QJoin(Class<? extends QEntity<?>> viewType, String joinOn, boolean toUnique) {
         this.viewType = viewType;
         this.joinCriteria = joinOn;
         this.toUnique = toUnique;
@@ -43,4 +43,7 @@ public class QJoin {
         }
         return model;
     }
+
+    @QFrom("")
+    private static class HiddenView implements QEntity<HiddenView> {}
 }

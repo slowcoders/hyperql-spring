@@ -12,7 +12,4 @@ public class AuthorFilter extends QFilter<Author> {
     @Predicate("@.name ilike '%' || ? || '%'")
     private String name;
 
-    AuthorFilter() {
-        super(Author.class);
-    }
 }
