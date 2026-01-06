@@ -1,7 +1,7 @@
 package org.slowcoders.hyperquery.core;
 
-import org.slowcoders.hyperquery.impl.HSchema;
 import org.slowcoders.hyperquery.impl.QCriteria;
+import org.slowcoders.hyperquery.impl.SqlBuilder;
 
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
@@ -49,21 +49,4 @@ public class QFilter<T extends QEntity<?>> {
         }
     }
 
-    //==============================================================================//
-
-    private String __sql__;
-
-    /*internal*/ public final void setSql(String sql) {
-        this.__sql__ = sql;
-    }
-
-    public QCriteria buildCriteria() {
-        return QCriteria.buildCriteria(this, "@");
-    }
-
-
-    public String toString() {
-        QCriteria criteria = buildCriteria();
-        return criteria.toString();
-    }
 }

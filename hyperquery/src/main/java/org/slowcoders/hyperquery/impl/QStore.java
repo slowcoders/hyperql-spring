@@ -1,6 +1,5 @@
 package org.slowcoders.hyperquery.impl;
 
-import jakarta.persistence.Column;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.apache.ibatis.builder.xml.XMLIncludeTransformer;
 import org.apache.ibatis.mapping.*;
@@ -15,9 +14,6 @@ import org.mybatis.spring.SqlSessionTemplate;
 import org.slowcoders.hyperquery.core.*;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.lang.reflect.TypeVariable;
 import java.util.*;
 
 public class QStore<E extends QEntity<E>> {
@@ -30,87 +26,10 @@ public class QStore<E extends QEntity<E>> {
     static final Map<String, HSchema> joinMap = new HashMap<>();
     private final Class<? extends QRepository> repositoryType;
 
-    private static class ColumnMapping {
-        final String columnName;
-        final String fieldName;
-        public ColumnMapping(String columnName, String fieldName) {
-            this.columnName = columnName;
-            this.fieldName = fieldName;
-        }
-    }
     public QStore(Configuration configuration, SqlSessionTemplate sqlSessionTemplate, Class<? extends QRepository> repositoryType) {
         this.configuration = configuration;
         this.sqlSessionTemplate = sqlSessionTemplate;
         this.repositoryType = repositoryType;
-    }
-
-    static class Helper implements QEntity<Helper> {
-        static String getColumnName(Field f) {
-            QColumn anno = f.getAnnotation(QColumn.class);
-            if (anno != null) return anno.value();
-
-            PKColumn pk = f.getAnnotation(PKColumn.class);
-            if (pk != null) return pk.value();
-
-            QEntity.TColumn tcol = f.getAnnotation(QEntity.TColumn.class);
-            if (tcol != null) return tcol.value();
-
-            Column col = f.getAnnotation(Column.class);
-            if (col != null) return col.name();
-
-            return null;
-        }
-
-        public static boolean isUniqueKey(Field f) {
-            return f.getAnnotation(QEntity.PKColumn.class) != null;
-        }
-    }
-
-    private static Class<?> getElementType(Field f) {
-        if (f.getType().isArray()) return f.getType().getComponentType();
-
-        Type type = f.getGenericType();
-        if (type instanceof ParameterizedType) {
-            ParameterizedType pType = (ParameterizedType) type;
-            Type[] typeArguments = pType.getActualTypeArguments();
-            if (typeArguments.length > 0 && typeArguments[0] instanceof Class) {
-                return (Class<?>) typeArguments[0];
-            }
-        }
-        return f.getType();
-    }
-
-    private static boolean isCollectionType(Field f) {
-        return f.getType().isArray() || Collection.class.isAssignableFrom(f.getType());
-    }
-    private void addSelection(Class<?> clazz, String propertyPrefix, String fromAlias) {
-        for (Field f : clazz.getDeclaredFields()) {
-            String columnName = Helper.getColumnName(f);
-            if (columnName == null) continue;
-            Class<?> elementType = getElementType(f);
-            if (!QRecord.class.isAssignableFrom(elementType)) {
-                int idx_dot = columnName.indexOf(".");
-                if (idx_dot > 0) {
-                    String alias = columnName.substring(0, idx_dot);
-                    joinAliases.add(alias);
-                } else {
-                    columnName = fromAlias + '.' + columnName;
-                }
-                if (isCollectionType(f)) {
-
-                }
-                columnMappings.add(new ColumnMapping(columnName, propertyPrefix + f.getName()));
-            } else if (!usedTables.contains(elementType)) {
-                // join loop 방지.
-                usedTables.add((Class<QRecord<E>>) elementType);
-                if (isCollectionType(f)) {
-
-                }
-                String alias = propertyPrefix.isEmpty() ? columnName : fromAlias + columnName;
-                this.addSelection(elementType, propertyPrefix + f.getName() + '.', alias);
-                joinAliases.add(alias);
-            }
-        }
     }
 
     public <R extends QRecord<E>> R selectOne(Class<R> resultType, QFilter<E> filter) {
@@ -120,75 +39,20 @@ public class QStore<E extends QEntity<E>> {
         return res.get(0);
     }
 
-    HSchema getSchema(Class<?> filterType) {
-        Type superclass = filterType.getGenericSuperclass();
 
-        if (superclass instanceof ParameterizedType) {
-            Type[] params = ((ParameterizedType) superclass).getActualTypeArguments();
-            Class<?> genericClass = (Class<?>) params[0]; // MyEntity.class
-            HSchema schema = HSchema.registerSchema((Class<? extends QEntity<?>>) genericClass);
-            return schema;
-        }
-        return null;
-    }
 
     public <R extends QRecord<E>> List<R> selectList(Class<R> resultType, QFilter<E> filter) {
-        this.addSelection(resultType, "", "@");
+        SqlBuilder gen = new SqlBuilder(resultType, filter);
+        String sql = gen.build();
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("select ");
-        for (ColumnMapping col : columnMappings) {
-            sb.append(col.columnName).append(" as \"").append(col.fieldName).append("\",\n");
-        }
-        sb.setLength(sb.length() - 2);
-        sb.append('\n');
-
-        HashMap<String, HModel> ctes = new HashMap<>();
-        HSchema relation = getSchema(filter.getClass());// filter.getRelation();
-        sb.append("from ").append(relation.getTableName()).append(" @").append('\n');
-        for (String alias : joinAliases) {
-            QJoin join = relation.getJoin(alias);
-            String tableName = join.getTargetRelation().getTableName();
-            if (tableName.length() == 0) {
-                ctes.put(alias, join.getTargetRelation());
-            }
-            sb.append("left join ").append(tableName).append(" ").append(alias);
-            // replace #*. -> "@" + join + "."
-            String joinCriteria = join.getJoinCriteria().replace("#", alias);
-            int lastDot = alias.lastIndexOf('@');
-            if (lastDot > 0) {
-                joinCriteria = joinCriteria.replaceAll("@\\.", alias.substring(0, lastDot) + ".");
-            }
-            sb.append("\n on ").append(joinCriteria).append('\n');
-        }
-
-        String sql = sb.append("where ").append(filter.toString()).toString();
-        if (ctes.size() > 0) {
-            StringBuilder sb2 = new StringBuilder("WITH ");
-            for (Map.Entry<String, HModel> entry : ctes.entrySet()) {
-                sb2.append(entry.getKey()).append(" AS (\n");
-                sb2.append(entry.getValue().getQuery()).append("), ");
-            }
-            sb2.setLength(sb2.length() - 2);
-            sql = sb2.append('\n').append(sql).toString();
-        }
-
-        String[] joins__ = joinAliases.toArray(new String[joinAliases.size()]);
-        for (int idxAlias = joins__.length; --idxAlias >= 0; ) {
-            String join = joins__[idxAlias];
-            String alias = join.substring(join.lastIndexOf('@') + 1);
-            sql = sql.replaceAll(join + "\\b", alias + "_" + (idxAlias));
-        }
-        sql = sql.replaceAll("@(?=\\W)", "t_0");
-
-        String id = registerMapper(null, relation, resultType);
+        String id = registerMapper(null, gen.getRootSchema(), resultType);
 
         HashMap<String, Object> params = new HashMap<>();
         params.put("_parameter", filter);
-        params.put("__sql__", "AAA " + sql);
-        filter.setSql(sql);
+        params.put("__sql__", sql);
+//        filter.setSql(sql);
 
-        Object res = sqlSessionTemplate.selectList(id, filter);
+        Object res = sqlSessionTemplate.selectList(id, params);
         return (List) res;
     }
 
@@ -196,12 +60,12 @@ public class QStore<E extends QEntity<E>> {
         List<ResultMapping> resultMappings = new ArrayList<>();
 
         for (Field f : clazz.getDeclaredFields()) {
-            String columnName = Helper.getColumnName(f); // @TColumn 등에서 컬럼명 추출
+            String columnName = HModel.Helper.getColumnName(f); // @TColumn 등에서 컬럼명 추출
             if (columnName == null) continue;
 
-            if (isCollectionType(f)) {
+            if (HModel.Helper.isCollectionType(f)) {
                 // 1:N Collection 매핑 처리
-                Class<?> listItemType = getElementType(f); // List의 제네릭 타입 추출 (예: HpcaTransactionPost)
+                Class<?> listItemType = HModel.getElementType(f); // List의 제네릭 타입 추출 (예: HpcaTransactionPost)
 
                 // 자식 엔티티를 위한 중첩 ResultMap 생성/참조
                 String nestedMapId = resultMapId + "." + f.getName();
@@ -219,7 +83,7 @@ public class QStore<E extends QEntity<E>> {
                 resultMappings.add(mapping);
             } else if (true || propertyPrefix.isEmpty() /* top level only ?? */) {
                 // 일반 컬럼 매핑 (ID 또는 Result)
-                boolean isPK = Helper.isUniqueKey(f);
+                boolean isPK = HModel.Helper.isUniqueKey(f);
                 ResultMapping mapping = new ResultMapping.Builder(configuration, f.getName(), f.getName(), f.getType())
                         .flags(isPK ? Collections.singletonList(ResultFlag.ID) : Collections.emptyList())
                         .build();

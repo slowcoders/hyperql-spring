@@ -4,10 +4,12 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.slowcoders.hyperquery.core.QEntity;
+import org.slowcoders.hyperquery.core.QFrom;
 
 import java.util.Set;
 
 
+@QFrom("bookstore.customer")
 public class Customer implements QEntity<Customer> {
     @Getter
     @Setter

@@ -34,9 +34,9 @@ public class QLambda {
         return rawStatement;
     }
 
-    public final String inflateStatement(List<String> args) {
+    public final String inflateStatement(SqlBuilder generator, List<String> args) {
         if (sourceFragments == null) {
-            sourceFragments = parseRawStatement();
+            sourceFragments = parseRawStatement(generator);
         }
         StringBuilder sb = new StringBuilder();
         for (SourceFragment sf : sourceFragments) {
@@ -68,12 +68,12 @@ public class QLambda {
         }
     }
 
-    private List<SourceFragment> parseRawStatement() {
+    private List<SourceFragment> parseRawStatement(SqlBuilder generator) {
         LambdaLexer lexer = new LambdaLexer(CharStreams.fromString(rawStatement));
         LambdaParser parser = new LambdaParser(new CommonTokenStream(lexer));
         ParseTree tree = parser.expr();
 
-        LambdaSplitter rewriter = new LambdaSplitter();
+        LambdaSplitter rewriter = new LambdaSplitter(generator);
         tree.accept(rewriter);
         return rewriter.sb.flushText();
     }
@@ -120,26 +120,26 @@ public class QLambda {
         }
     }
 
-    class LambdaSplitter extends LambdaBaseVisitor<String> {
+    static class LambdaSplitter extends LambdaBaseVisitor<String> {
+        private final SqlBuilder relation;
         SourceBuffer sb = new SourceBuffer();
+
+        public LambdaSplitter(SqlBuilder generator) {
+            this.relation = generator;
+        }
 
         @Override
         public String visitMacroInvocation(LambdaParser.MacroInvocationContext ctx) {
             String property = ctx.property().getText();
-            String name = property.substring(property.indexOf('.')+1);
-            String[] joinPath = property.substring(0, property.indexOf('.')).split("@");
-
-            QLambda lambda = relation.getLambda(joinPath, name);
-            List<LambdaParser.ExprContext> args = ctx.tuple().expr();
-            SourceBuffer old_sb = this.sb;
             List<String> callArgs = new ArrayList<>();
-            for (LambdaParser.ExprContext arg : args) {
+
+            SourceBuffer old_sb = this.sb;
+            for (LambdaParser.ExprContext arg : ctx.tuple().expr()) {
                 this.sb = new SourceBuffer();
                 arg.accept(this);
-                sb.flushText();
                 callArgs.add(sb.toString());
             }
-            String lambdaCall = lambda.inflateStatement(callArgs);
+            String lambdaCall = relation.resolveLambda(property, callArgs);
             this.sb = old_sb;
             sb.addText(lambdaCall);
             return "";
@@ -155,7 +155,7 @@ public class QLambda {
         @Override
         public String visitProperty(LambdaParser.PropertyContext ctx) {
             String property = ctx.getText();
-            String v = relation.translateProperty(property);
+            String v = relation.resolveProperty(property);
             sb.addText(v);
             return "";
         }
