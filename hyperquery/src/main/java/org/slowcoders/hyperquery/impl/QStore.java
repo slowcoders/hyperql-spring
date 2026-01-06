@@ -183,7 +183,11 @@ public class QStore<E extends QEntity<E>> {
 
         String id = registerMapper(null, relation, resultType);
 
+        HashMap<String, Object> params = new HashMap<>();
+        params.put("_parameter", filter);
+        params.put("__sql__", "AAA " + sql);
         filter.setSql(sql);
+
         Object res = sqlSessionTemplate.selectList(id, filter);
         return (List) res;
     }
