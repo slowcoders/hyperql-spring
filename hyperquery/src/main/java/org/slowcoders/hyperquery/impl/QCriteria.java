@@ -55,10 +55,7 @@ public class QCriteria extends ArrayList<String> {
                     if (subFilter != null) {
                         throw new IllegalStateException("Invalid @Condition + @EmbedFilter pair on " + f.getName());
                     }
-                    String expr = predicate.value();
-                    if (false) {
-                        expr = PredicateTranslator.translate(null, f.getName(), expr);
-                    }
+                    String expr = PredicateTranslator.translate(generator, f.getName(), predicate.value());
                     if (!isIterable(f)) {
                         expr = expr.replaceAll("\\?", "#{" + f.getName() + "}");
                     } else {
@@ -71,10 +68,10 @@ public class QCriteria extends ArrayList<String> {
                     if (!QFilter.class.isAssignableFrom(f.getType())) {
                         throw new IllegalStateException("Invalid @EmbedFilter on " + f.getName());
                     }
-                    generator.pushNamespace(subFilter.value());
+                    JoinNode node = generator.pushNamespace(subFilter.value());
                     String expr = parse(generator, (QFilter<?>)value, subFilter.value()).toString();
 //                    String expr = new CriteriaBuilder(generator, (QFilter<?>)value, subFilter.value()).build().toString();
-                    generator.popNamespace();
+                    generator.setNamespace(node);
                     criteria.add(expr);
                 }
             }

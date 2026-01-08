@@ -3,10 +3,15 @@ grammar Predicate;
 /* =======================
  * Parser rules
  * ======================= */
+parse
+    : expr EOF
+    ;
+
 expr
     : (macroInvocation
     | parameter
     | property
+    | joinTargetAttr
     | tuple
     | trivia
     | string
@@ -25,6 +30,10 @@ property
     : PropertyLiteral
     ;
 
+joinTargetAttr
+    : JoinTargetAttrLiteral
+    ;
+
 trivia
     : Tribia
     ;
@@ -34,7 +43,7 @@ tuple
     ;
 
 atom
-    : Identifier
+    : QualifiedIndetifier
     ;
 
 string
@@ -46,11 +55,19 @@ string
  * ======================= */
 
 PropertyLiteral
-    : Alias '.' Identifier
+    : Alias '.' QualifiedIndetifier
+    ;
+
+JoinTargetAttrLiteral
+    : '#.' QualifiedIndetifier
     ;
 
 Alias
     : '@' | ('@' Identifier)+
+    ;
+
+QualifiedIndetifier
+    : Identifier ('.' Identifier)*
     ;
 
 Identifier
@@ -58,7 +75,7 @@ Identifier
     ;
 
 Tribia
-    : ~[a-zA-Z,?@()]+
+    : ~[a-zA-Z,?@#(){}'"]+
     ;
 
 StringLiteral

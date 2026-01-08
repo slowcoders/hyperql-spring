@@ -10,7 +10,7 @@ expr
     | tuple
     | trivia
     | string
-    | atom)+
+    | atom)+ EOF
     ;
 
 macroInvocation
@@ -34,7 +34,7 @@ tuple
     ;
 
 atom
-    : Identifier
+    : Identifier ('.' Identifier)*
     ;
 
 string

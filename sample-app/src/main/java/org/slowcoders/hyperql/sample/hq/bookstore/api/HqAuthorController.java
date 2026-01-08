@@ -19,8 +19,8 @@ public class HqAuthorController {
     }
 
     @PostMapping("/")
-    public List<Author> search(@RequestBody AuthorFilter filter) {
-        List<Author> res = service.selectList(Author.class, filter);
+    public List<AuthorDto> search(@RequestBody AuthorFilter filter) {
+        List<AuthorDto> res = service.selectList(AuthorDto.class, filter);
         return res;
     }
 

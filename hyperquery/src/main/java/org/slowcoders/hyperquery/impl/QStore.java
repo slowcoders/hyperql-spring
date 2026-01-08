@@ -50,7 +50,6 @@ public class QStore<E extends QEntity<E>> {
         HashMap<String, Object> params = new HashMap<>();
         params.put("_parameter", filter);
         params.put("__sql__", sql);
-//        filter.setSql(sql);
 
         Object res = sqlSessionTemplate.selectList(id, params);
         return (List) res;
@@ -65,7 +64,7 @@ public class QStore<E extends QEntity<E>> {
 
             if (HModel.Helper.isCollectionType(f)) {
                 // 1:N Collection 매핑 처리
-                Class<?> listItemType = HModel.getElementType(f); // List의 제네릭 타입 추출 (예: HpcaTransactionPost)
+                Class<?> listItemType = HModel.Helper.getElementType(f); // List의 제네릭 타입 추출 (예: HpcaTransactionPost)
 
                 // 자식 엔티티를 위한 중첩 ResultMap 생성/참조
                 String nestedMapId = resultMapId + "." + f.getName();

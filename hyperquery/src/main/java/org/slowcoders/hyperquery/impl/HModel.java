@@ -34,20 +34,6 @@ public abstract class HModel {
         return null;
     }
 
-    static Class<? extends QRecord<?>> getElementType(Field f) {
-        if (f.getType().isArray()) return (Class<? extends QRecord<?>>) f.getType().getComponentType();
-
-        Type type = f.getGenericType();
-        if (type instanceof ParameterizedType) {
-            ParameterizedType pType = (ParameterizedType) type;
-            Type[] typeArguments = pType.getActualTypeArguments();
-            if (typeArguments.length > 0 && typeArguments[0] instanceof Class) {
-                return (Class<? extends QRecord<?>>) typeArguments[0];
-            }
-        }
-        return (Class<? extends QRecord<?>>) f.getType();
-    }
-
     static class Helper implements QEntity<Helper> {
         static String getColumnName(Field f) {
             QColumn anno = f.getAnnotation(QColumn.class);
@@ -71,6 +57,20 @@ public abstract class HModel {
 
         public static boolean isCollectionType(Field f) {
             return f.getType().isArray() || Collection.class.isAssignableFrom(f.getType());
+        }
+
+        static Class<? extends QRecord<?>> getElementType(Field f) {
+            if (f.getType().isArray()) return (Class<? extends QRecord<?>>) f.getType().getComponentType();
+
+            Type type = f.getGenericType();
+            if (type instanceof ParameterizedType) {
+                ParameterizedType pType = (ParameterizedType) type;
+                Type[] typeArguments = pType.getActualTypeArguments();
+                if (typeArguments.length > 0 && typeArguments[0] instanceof Class) {
+                    return (Class<? extends QRecord<?>>) typeArguments[0];
+                }
+            }
+            return (Class<? extends QRecord<?>>) f.getType();
         }
     }
 }

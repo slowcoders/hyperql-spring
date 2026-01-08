@@ -6,10 +6,14 @@ import org.antlr.v4.runtime.tree.ErrorNode;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
+import org.slowcoders.hql.core.antlr.PredicateParser;
+import org.slowcoders.hql.core.antlr.PredicateLexer;
+import org.slowcoders.hql.core.antlr.PredicateBaseVisitor;
+
 import java.util.ArrayList;
 import java.util.List;
 
-class PredicateTranslator extends org.slowcoders.hql.core.antlr.PredicateBaseVisitor<String> {
+class PredicateTranslator extends PredicateBaseVisitor<String> {
     StringBuilder sb = new StringBuilder();
     SqlBuilder relation;
     String paramName;
@@ -20,24 +24,26 @@ class PredicateTranslator extends org.slowcoders.hql.core.antlr.PredicateBaseVis
     }
 
     public static String translate(SqlBuilder sqlBuilder, String paramName, String predicate) {
-        org.slowcoders.hql.core.antlr.PredicateLexer lexer = new org.slowcoders.hql.core.antlr.PredicateLexer(CharStreams.fromString(predicate));
-        org.slowcoders.hql.core.antlr.PredicateParser parser = new org.slowcoders.hql.core.antlr.PredicateParser(new CommonTokenStream(lexer));
-        ParseTree tree = parser.expr();
+        PredicateLexer lexer = new PredicateLexer(CharStreams.fromString(predicate));
+        PredicateParser parser = new PredicateParser(new CommonTokenStream(lexer));
+        ParseTree tree = parser.parse();
 
         PredicateTranslator rewriter = new PredicateTranslator(sqlBuilder, paramName);
-        tree.accept(rewriter);
+        rewriter.sb.append('(');
+        tree.getChild(0).accept(rewriter);
+        rewriter.sb.append(')');
         return rewriter.sb.toString();
     }
 
 
     @Override
-    public String visitMacroInvocation(org.slowcoders.hql.core.antlr.PredicateParser.MacroInvocationContext ctx) {
+    public String visitMacroInvocation(PredicateParser.MacroInvocationContext ctx) {
         String property = ctx.property().getText();
         List<String> callArgs = new ArrayList<>();
 
         StringBuilder old_sb = this.sb;
         this.sb = new StringBuilder();
-        for (org.slowcoders.hql.core.antlr.PredicateParser.ExprContext arg : ctx.tuple().expr()) {
+        for (PredicateParser.ExprContext arg : ctx.tuple().expr()) {
             sb.setLength(0);
             arg.accept(this);
             callArgs.add(sb.toString());
@@ -49,7 +55,7 @@ class PredicateTranslator extends org.slowcoders.hql.core.antlr.PredicateBaseVis
     }
 
     @Override
-    public String visitProperty(org.slowcoders.hql.core.antlr.PredicateParser.PropertyContext ctx) {
+    public String visitProperty(PredicateParser.PropertyContext ctx) {
         String property = ctx.getText();
         String v = relation.resolveProperty(property);
         sb.append(v);
@@ -57,7 +63,7 @@ class PredicateTranslator extends org.slowcoders.hql.core.antlr.PredicateBaseVis
     }
 
     @Override
-    public String visitParameter(org.slowcoders.hql.core.antlr.PredicateParser.ParameterContext ctx) {
+    public String visitParameter(PredicateParser.ParameterContext ctx) {
         String param = ctx.getText();
         sb.append("#{").append(paramName);
         if (param.length() > 1) {
@@ -66,6 +72,13 @@ class PredicateTranslator extends org.slowcoders.hql.core.antlr.PredicateBaseVis
         }
         sb.append('}');
         return param;
+    }
+
+    public String visitJoinTargetAttr(PredicateParser.JoinTargetAttrContext ctx) {
+        String property = ctx.getText();
+        String v = relation.resolveProperty(this.paramName + property.substring(1));
+        sb.append(v);
+        return "";
     }
 
     @Override

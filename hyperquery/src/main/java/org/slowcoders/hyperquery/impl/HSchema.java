@@ -20,12 +20,8 @@ public class HSchema extends HModel {
 
     public HSchema(Class<? extends QRecord<?>> entityType) {
         this.entityType = entityType;
-        this.tableName = (getTableName(entityType));
-    }
-
-    static String getTableName(Class<? extends QRecord<?>> entityType) {
         QFrom from = entityType.getAnnotation(QFrom.class);
-        return from.value();
+        this.tableName = from.value();
     }
     public final Class<? extends QRecord<?>> getEntityType() { return entityType; }
 
@@ -34,24 +30,9 @@ public class HSchema extends HModel {
         return attributes.get(property);
     }
 
-    private static HModel getModel(HModel model, String[] joinStack) {
-        for (String alias : joinStack) {
-            if (alias.isEmpty()) continue;
-            model.initialize();
-            model = model.getJoin(alias).getTargetRelation();
-        }
-        return model;
-    }
-
     public QLambda getLambda(String alias) {
         return lambdas.get(alias);
     }
-    public QLambda getLambda(String[] joinPath, String property) {
-        initialize();
-        HModel model = getModel(this, joinPath);
-        return model.getLambda(property);
-    }
-
     public static HSchema registerSchema(Class<? extends QEntity<?>> clazz) {
         HSchema relation = relations.get(clazz);
         if (relation == null) {
