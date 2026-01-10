@@ -28,6 +28,14 @@ public class Author implements QEntity<Author> {
             @.bookCount * @.bookPriceAvr
             """);
 
+    static final QAttribute attr1 = Property.formula("""
+            @.attr2 * 30
+            """);
+    static final QAttribute attr2 = Property.formula("""
+            @.attr1 * 30
+            """);
+
+
     @Id
     @Column(name = "id", nullable = false)
     @PKColumn("id")

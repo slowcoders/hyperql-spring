@@ -28,6 +28,9 @@ public class AuthorDto implements QRecord<Author> {
 
     @QColumn("bookPriceAvr")
     private int bookPriceAvr;
+
+//    @QColumn("attr2")
+//    private int attr2;
 }
 
 

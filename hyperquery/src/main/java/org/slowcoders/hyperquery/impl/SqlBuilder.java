@@ -94,6 +94,7 @@ public class SqlBuilder extends ViewNode {
         });
     }
 
+
     public String resolveProperty(String path) {
         return this.resolveQualifiedAlias(path, (model, name) -> {
             QAttribute attr = model.getAttribute(name);
@@ -155,7 +156,7 @@ public class SqlBuilder extends ViewNode {
         genJoin(sb, sbWith, currView.joins);
     }
 
-    private void genJoin(StringBuilder sb, StringBuilder sbWith, HashMap<String, JoinNode> joinNodes) {
+    private void genJoin(StringBuilder sb, StringBuilder sbWith, Map<String, JoinNode> joinNodes) {
         for (Map.Entry<String, JoinNode> entry : joinNodes.entrySet()) {
             String alias = entry.getKey();
             JoinNode node = entry.getValue();

@@ -4,7 +4,7 @@ import axios from "axios";
 
 describe('Hyper Query operations', () => {
 
-    initSampleDB();
+    // initSampleDB();
 
     const baseUrl = "http://localhost:7007/api/hq/authors"
 

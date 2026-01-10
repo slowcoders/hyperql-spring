@@ -2,11 +2,12 @@ package org.slowcoders.hyperquery.impl;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.TreeMap;
 
 class ViewNode {
     final HashMap<String, String> usedAttributes = new HashMap<>();
 
-    final HashMap<String, JoinNode> joins = new HashMap<>();
+    final TreeMap<String, JoinNode> joins = new TreeMap<>();
 
     protected JoinNode getJoin(String aliasQualifier) {
         return joins.get(aliasQualifier);
@@ -31,9 +32,7 @@ class JoinNode {
 
     final boolean addUsedAttribute(String alias, String expr) {
         for (int i = attrLevel; --i >= 0; ) {
-            if (views.get(i).usedAttributes.containsKey(alias)) {
-                return false;
-            }
+            views.get(i).usedAttributes.remove(alias);
         }
         for (int i = views.size(); --i >= attrLevel; ) {
             if (views.get(i).usedAttributes.containsKey(alias)) {
