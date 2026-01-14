@@ -166,4 +166,14 @@ public class HSchema extends HModel {
         }
         return joins.get(join);
     }
+
+    String getColumnExpr(Field f) {
+        String columnExpr = HModel.Helper.getColumnName(f);
+        if (columnExpr != null) return columnExpr;
+        if (this.attributes != null) {
+            QAttribute attr = this.attributes.get(f.getName());
+            if (attr != null) return attr.getEncodedExpr();
+        }
+        return null;
+    }
 }

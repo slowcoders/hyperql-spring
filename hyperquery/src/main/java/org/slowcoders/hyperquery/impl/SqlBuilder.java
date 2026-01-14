@@ -1,6 +1,7 @@
 package org.slowcoders.hyperquery.impl;
 
 import org.slowcoders.hyperquery.core.*;
+import org.slowcoders.hyperquery.util.SqlWriter;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -33,23 +34,23 @@ public class SqlBuilder extends ViewNode {
     }
 
     public String build() {
-        StringBuilder sbWith = new StringBuilder("WITH ");
-        StringBuilder sb = new StringBuilder();
-
-        parseSelect(resultType, "");
+        List<ColumnMapping> columnMappings = parseSelect(resultType, "");
         QCriteria criteria = QCriteria.parse(this, filter, "@");
 
         String where = criteria.toString();
+        SqlWriter sbWith = new SqlWriter().write("WITH ");
+        SqlWriter sb = new SqlWriter();
+
         genTableView(sbWith, "t_0", currNode);
         genSelections(sb);
         genFrom(sb, sbWith);
         if (sbWith.length() > 5) {
-            sbWith.setLength(sbWith.length() - 2);
-            sbWith.append('\n');
-            sbWith.append(sb);
+            sbWith.shrinkLength(2);
+            sbWith.writeln();
+            sbWith.write(sb.toString());
             sb = sbWith;
         }
-        sb.append("WHERE ").append(where);
+        sb.write("WHERE ").write(where);
         String sql = sb.toString();
         return sql;
     }
@@ -140,37 +141,42 @@ public class SqlBuilder extends ViewNode {
         return res;
     }
 
-    private void genSelections(StringBuilder sb) {
-        sb.append("select ");
+    private void genSelections(SqlWriter sb) {
+        sb.write("SELECT ");
+        sb.incTab();
         for (ColumnMapping col : columnMappings) {
-            sb.append(col.columnName).append(" as \"").append(col.fieldName).append("\",\n");
+            sb.write(col.columnName).write(" as \"").write(col.fieldName).write("\",\n");
         }
-        sb.setLength(sb.length() - 2);
-        sb.append('\n');
+        sb.shrinkLength(2);
+        sb.decTab();
+        sb.write('\n');
     }
 
-    private void genFrom(StringBuilder sb, StringBuilder sbWith) {
+    private void genFrom(SqlWriter sb, SqlWriter sbWith) {
         HSchema relation = HSchema.getSchema(filter.getClass());
         String baseTable = currNode.views.isEmpty() ? relation.getTableName() : "";
-        sb.append("from ").append(baseTable).append(" t_0").append('\n');
+        sb.write("from ").write(baseTable).write(" t_0").write('\n');
         genJoin(sb, sbWith, currView.joins);
     }
 
-    private void genJoin(StringBuilder sb, StringBuilder sbWith, Map<String, JoinNode> joinNodes) {
+    private void genJoin(SqlWriter sb, SqlWriter sbWith, Map<String, JoinNode> joinNodes) {
         for (Map.Entry<String, JoinNode> entry : joinNodes.entrySet()) {
             String alias = entry.getKey();
             JoinNode node = entry.getValue();
             String tableName = genTableView(sbWith, alias, node);
-            sb.append("left join ").append(tableName).append(" ").append(alias);
-            sb.append("\n on ").append(node.joinCriteria).append('\n');
+            sb.write("left join ").write(tableName).write(" ").write(alias);
+            sb.write("\n on ").write(node.joinCriteria).write('\n');
         }
     }
 
-    private String genTableView(StringBuilder sb, String alias, JoinNode node) {
+    private String genTableView(SqlWriter sb, String alias, JoinNode node) {
         String tableName = node.model.getTableName();
         if (tableName.isEmpty()) {
-            sb.append(alias).append(" AS (\n");
-            sb.append(node.model.getQuery(viewResolver)).append("), ");
+            sb.write(alias).write(" AS (\n");
+            sb.incTab();
+            sb.write(node.model.getQuery(viewResolver));
+            sb.decTab();
+            sb.write("), ");
             return tableName;
         }
 
@@ -178,26 +184,28 @@ public class SqlBuilder extends ViewNode {
 
         for (int idx = node.views.size(); --idx >= 0;) {
             ViewNode attrMap = node.views.get(idx);
-            sb.append(alias);
-            if (idx > 0) sb.append('_').append(idx);
-            sb.append(" AS (\n");
-            sb.append("SELECT ").append(alias).append(".*");
+            sb.write(alias);
+            if (idx > 0) sb.write('_').write(idx);
+            sb.write(" AS (\n");
+            sb.write("SELECT ").write(alias).write(".*");
+            sb.incTab();
             for (Map.Entry<String, String> attr : attrMap.usedAttributes.entrySet()) {
                 String name = attr.getKey();
                 String expr = attr.getValue();
-                sb.append("\n, ").append(expr).append(" as ").append(name);
+                sb.write("\n, ").write(expr).write(" as ").write(name);
             }
-            sb.append("\nFROM ").append(tableName);
-            sb.append(" AS ").append(alias).append("\n");
+            sb.decTab();
+            sb.write("\nFROM ").write(tableName);
+            sb.write(" AS ").write(alias).write("\n");
             genJoin(sb, null, attrMap.joins);
-            sb.append("\n), ");
+            sb.write("\n), ");
             tableName = alias + '_' + (idx);
         }
         return "";
     }
 
     static Pattern ColumnNameOnly = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*");
-    void parseSelect(Class<? extends QRecord<?>> recordType, String propertyPrefix) {
+    List<ColumnMapping> parseSelect(Class<? extends QRecord<?>> recordType, String propertyPrefix) {
         try {
             for (Field f : recordType.getDeclaredFields()) {
                 String columnExpr = HModel.Helper.getColumnName(f);
@@ -216,6 +224,7 @@ public class SqlBuilder extends ViewNode {
                     addColumnMapping(columnExpr, propertyPrefix + f.getName());
                 }
             }
+            return this.columnMappings;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
