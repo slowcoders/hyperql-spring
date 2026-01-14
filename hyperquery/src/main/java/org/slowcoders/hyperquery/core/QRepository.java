@@ -1,15 +1,9 @@
-package org.slowcoders.hyperquery.impl;
+package org.slowcoders.hyperquery.core;
 
 
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
-import org.slowcoders.hyperquery.core.QEntity;
-import org.slowcoders.hyperquery.core.QFilter;
-import org.slowcoders.hyperquery.core.QRecord;
-import org.slowcoders.hyperquery.core.QUniqueRecord;
-
-import java.util.List;
 
 public interface QRepository {
 

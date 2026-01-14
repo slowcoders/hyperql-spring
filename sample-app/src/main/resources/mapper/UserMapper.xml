@@ -3,7 +3,7 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="org.slowcoders.hyperql.sample.jdbc.bookstore.mapper.UserMapper">
+<mapper namespace="org.slowcoders.hyperql.sample.hq.bookstore.mapper.UserMapper">
 
     <resultMap id="UserMap" type="org.slowcoders.hyperql.sample.hq.bookstore.UserDto">
         <id     property="id"        column="id"/>
@@ -40,5 +40,24 @@
         DELETE FROM "User"
         WHERE id = #{id}
     </delete>
+
+    <sql id="bookSales_columns">
+            b.id as book_id,
+            b.title,
+            count(*) AS count,
+            max(b.price) * count(*) AS amount,
+            row_number() over (order by count(*) desc) as ranking
+    </sql>
+
+    <sql id="bookSales">
+        SELECT
+            <include refid="bookSales_columns" />
+        FROM bookstore.book b
+        LEFT JOIN bookstore.book_order s
+            ON s.book_id = b.id
+            AND s.order_date between #{startDate} and #{endDate}
+        GROUP BY b.id, b.title
+        order by amount desc
+    </sql>
 
 </mapper>

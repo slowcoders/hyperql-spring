@@ -2,6 +2,7 @@ package org.slowcoders.hyperquery.core;
 
 import org.slowcoders.hyperquery.impl.HModel;
 import org.slowcoders.hyperquery.impl.HSchema;
+import org.slowcoders.hyperquery.impl.ViewResolver;
 
 public class QInlineView extends HModel {
 
@@ -18,7 +19,7 @@ public class QInlineView extends HModel {
     }
 
     @Override
-    protected String getQuery() {
+    protected String getQuery(ViewResolver viewResolver) {
         return viewDefinition;
     }
 

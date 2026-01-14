@@ -1,5 +1,6 @@
 package org.slowcoders.hyperquery.core;
 
+import org.slowcoders.hyperquery.impl.HFilter;
 import org.slowcoders.hyperquery.impl.QCriteria;
 import org.slowcoders.hyperquery.impl.SqlBuilder;
 
@@ -7,7 +8,7 @@ import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-public class QFilter<T extends QEntity<?>> {
+public class QFilter<T extends QEntity<?>> extends HFilter {
 
     @Retention(RetentionPolicy.RUNTIME)
     public @interface Predicate {

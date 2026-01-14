@@ -16,14 +16,9 @@ import org.slowcoders.hyperquery.core.*;
 import java.lang.reflect.Field;
 import java.util.*;
 
-public class QStore<E extends QEntity<E>> {
+public class QStore<T> implements ViewResolver {
     private final Configuration configuration;
     private final SqlSessionTemplate sqlSessionTemplate;
-    private final List<ColumnMapping> columnMappings = new ArrayList<>();
-    private final Set<String> joinAliases = new HashSet<>();
-    private final Set<Class<QRecord<E>>> usedTables = new HashSet<>();
-
-    static final Map<String, HSchema> joinMap = new HashMap<>();
     private final Class<? extends QRepository> repositoryType;
 
     public QStore(Configuration configuration, SqlSessionTemplate sqlSessionTemplate, Class<? extends QRepository> repositoryType) {
@@ -32,7 +27,7 @@ public class QStore<E extends QEntity<E>> {
         this.repositoryType = repositoryType;
     }
 
-    public <R extends QRecord<E>> R selectOne(Class<R> resultType, QFilter<E> filter) {
+    public <E extends QEntity<E>, R extends QRecord<E>> R selectOne(Class<R> resultType, QFilter<E> filter) {
         List<R> res = selectList(resultType, filter);
         if (res.isEmpty()) return null;
         if (res.size() > 1) throw new IllegalStateException("Too many rows returned.");
@@ -41,18 +36,21 @@ public class QStore<E extends QEntity<E>> {
 
 
 
-    public <R extends QRecord<E>> List<R> selectList(Class<R> resultType, QFilter<E> filter) {
-        SqlBuilder gen = new SqlBuilder(resultType, filter);
+    public <E extends QEntity<E>, R extends QRecord<E>> List<R> selectList(Class<R> resultType, QFilter<E> filter) {
+        SqlBuilder gen = new SqlBuilder(resultType, filter, this);
         String sql = gen.build();
 
         String id = registerMapper(null, gen.getRootSchema(), resultType);
 
-        HashMap<String, Object> params = new HashMap<>();
-        params.put("_parameter", filter);
-        params.put("__sql__", sql);
+        HFilter._sql.set(sql);
+        HFilter._session.set(getCurrentSessionInfo());
 
-        Object res = sqlSessionTemplate.selectList(id, params);
+        Object res = sqlSessionTemplate.selectList(id, filter);
         return (List) res;
+    }
+
+    public Object getCurrentSessionInfo() {
+        return null;
     }
 
     private ResultMap createNestedResultMap(Class<?> clazz, String resultMapId, String propertyPrefix) {
@@ -141,52 +139,64 @@ public class QStore<E extends QEntity<E>> {
         return fr.getStringBody();
     }
 
-    public void getViewMapper(Class<?> mapperClass, Class<? extends QRecord<?>> resultType) throws Exception {
+    private String getMapperId(Class<? extends QRecord<?>> resultType) {
+        QFromMapper mapper = resultType.getAnnotation(QFromMapper.class);
+        if (mapper.mapper() == void.class) {
+            return mapper.sqlId();
+        }
+        return mapper.mapper().getName() + "." + mapper.sqlId();
+    }
+
+    public String resolveView(Class<? extends QRecord<?>> resultType) {
 //        Class<?> mapperClass = null // UserMapper.class;
-        String mapperName = "blockDetailOnDate";
+//        String mapperName = "blockDetailOnDate";
+//        HashMap<String, Object> mapperParams = new HashMap<>();
+//        mapperParams.put("selections", "*");
+//        mapperParams.put("date", "2025-02-08");
+        String mapperId = getMapperId(resultType);
         HashMap<String, Object> mapperParams = new HashMap<>();
-        mapperParams.put("selections", "*");
-        mapperParams.put("date", "2025-02-08");
-        String mapperId = mapperClass.getName() + "." + mapperName;
 
         if (configuration.hasStatement(mapperId)) {
             MappedStatement ms = configuration.getMappedStatement(mapperId);
             SqlSource ss = ms.getSqlSource();
             ss.getBoundSql(mapperParams);
             throw new IllegalArgumentException("Only <sql> fragments can be used to create View.");
-        } else {
-
-            // <include> 처리.
-            MapperBuilderAssistant builderAssistant = new MapperBuilderAssistant(configuration, mapperClass.getName() + ".???");
-            XMLIncludeTransformer includeParser = new XMLIncludeTransformer(configuration, builderAssistant);
-            builderAssistant.setCurrentNamespace(mapperClass.getName());
-
-            XNode fr = configuration.getSqlFragments().get(mapperId);
-            includeParser.applyIncludes(fr.getNode());
-
-            // <parameter 처리>
-            SqlSource sqlSource;
-            if (false) {
-//                sqlSource = new ScriptBuilder(configuration, fr).parseScriptNode(mapperParams);
-            }
-            else {
-                sqlSource = new XMLScriptBuilder(configuration, fr).parseScriptNode();
-            }
-
-            final boolean checkDynamicParameter = true;
-            if (checkDynamicParameter) {
-                BoundSql bsql = sqlSource.getBoundSql(mapperParams);
-                if (!bsql.getParameterMappings().isEmpty()) {
-                    throw new IllegalArgumentException("View statement should not contain dynamic parameters. " + bsql.getParameterMappings());
-                }
-            }
-
-            mapperId = registerMapper(sqlSource, HSchema.registerSchema(null), resultType);
         }
 
-        Object res = sqlSessionTemplate.selectList(mapperId, mapperParams);
+        // <include> 처리.
+        MapperBuilderAssistant builderAssistant = new MapperBuilderAssistant(configuration, mapperId + ".???");
+        XMLIncludeTransformer includeParser = new XMLIncludeTransformer(configuration, builderAssistant);
+        String namespace = mapperId.substring(0, mapperId.lastIndexOf('.'));
+        builderAssistant.setCurrentNamespace(namespace);
 
-        System.out.println(res);
+        XNode fr = configuration.getSqlFragments().get(mapperId);
+        includeParser.applyIncludes(fr.getNode());
+
+        // <parameter 처리>
+        SqlSource sqlSource;
+        if (false) {
+//                sqlSource = new ScriptBuilder(configuration, fr).parseScriptNode(mapperParams);
+        }
+        else {
+            sqlSource = new XMLScriptBuilder(configuration, fr).parseScriptNode();
+        }
+
+        final boolean disableDynamicParameter = false;
+        if (true) {
+            BoundSql bsql = sqlSource.getBoundSql(mapperParams);
+            if (disableDynamicParameter && !bsql.getParameterMappings().isEmpty()) {
+                throw new IllegalArgumentException("View statement should not contain dynamic parameters. " + bsql.getParameterMappings());
+            }
+            System.out.println(bsql.getSql());
+        }
+
+        if (false) {
+            mapperId = registerMapper(sqlSource, HSchema.registerSchema(null), resultType);
+            Object res = sqlSessionTemplate.selectList(mapperId, mapperParams);
+            System.out.println(res);
+        }
+        String sql = fr.getNode().getTextContent();
+        return sql;
     }
 
     static class ScriptBuilder extends XMLScriptBuilder {

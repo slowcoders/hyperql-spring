@@ -1,9 +1,10 @@
 package org.slowcoders.hyperquery.core;
 
+import org.slowcoders.hyperquery.impl.AliasNode;
 import org.slowcoders.hyperquery.impl.HModel;
 import org.slowcoders.hyperquery.impl.HSchema;
 
-public class QJoin {
+public class QJoin extends AliasNode {
 
     public enum JoinType {
         Inner,
@@ -13,27 +14,26 @@ public class QJoin {
         Right,
         Cross
     }
-    private final String joinCriteria;
     private HModel model;
     private final boolean toUnique;
     private Class<? extends QEntity<?>> viewType;
 
     // Cross Join 은 지원하지 읺는다.
     protected QJoin(QInlineView inlineView, String joinOn, boolean toUnique) {
+        super(joinOn);
         this.viewType = HiddenView.class;
         this.model = inlineView;
-        this.joinCriteria = joinOn;
         this.toUnique = toUnique;
     }
 
     protected QJoin(Class<? extends QEntity<?>> viewType, String joinOn, boolean toUnique) {
+        super(joinOn);
         this.viewType = viewType;
-        this.joinCriteria = joinOn;
         this.toUnique = toUnique;
     }
 
     public String getJoinCriteria() {
-        return joinCriteria;
+        return super.getEncodedExpr();
     }
     public boolean isToUnique() { return toUnique; }
 

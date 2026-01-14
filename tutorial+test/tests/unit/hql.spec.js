@@ -6,7 +6,7 @@ describe('Hyper Query operations', () => {
 
     // initSampleDB();
 
-    const baseUrl = "http://localhost:7007/api/hq/authors"
+    const baseUrl = "http://localhost:7007/api/hq"
 
     beforeAll(async () => {
     })
@@ -15,8 +15,20 @@ describe('Hyper Query operations', () => {
         const filter = {
             "name": '강'
         }
-        const url = `${baseUrl}/`
+        const url = `${baseUrl}/authors`
         const response = await axios.post(url, filter);
+        console.log(response.data);
+
+        // expect(customers.length).toBe(1)
+    });
+
+    test('Mapper Test', async () => {
+        const filter = {
+            "startDate": '1970-01-01',
+            "endDate": '3070-01-01'
+        }
+        const url = `${baseUrl}/books/sales`
+        const response = await axios.get(url);
         console.log(response.data);
 
         // expect(customers.length).toBe(1)

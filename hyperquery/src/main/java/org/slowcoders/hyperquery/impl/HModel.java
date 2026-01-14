@@ -1,10 +1,7 @@
 package org.slowcoders.hyperquery.impl;
 
 import jakarta.persistence.Column;
-import org.slowcoders.hyperquery.core.QColumn;
-import org.slowcoders.hyperquery.core.QEntity;
-import org.slowcoders.hyperquery.core.QJoin;
-import org.slowcoders.hyperquery.core.QRecord;
+import org.slowcoders.hyperquery.core.*;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
@@ -18,7 +15,7 @@ public abstract class HModel {
 
     protected abstract HSchema loadSchema();
 
-    protected abstract String getQuery();
+    protected abstract String getQuery(ViewResolver viewResolver);
 
     protected abstract String getTableName();
 

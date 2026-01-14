@@ -5,52 +5,82 @@ import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ErrorNode;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.TerminalNode;
-import org.slowcoders.hql.core.antlr.LambdaBaseVisitor;
-import org.slowcoders.hql.core.antlr.LambdaLexer;
-import org.slowcoders.hql.core.antlr.LambdaParser;
+import org.slowcoders.hyperquery.core.QJoin;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
-public class QLambda {
-    private HSchema relation;
+public class AliasNode {
     private String name;
-    private final int argCount;
-    private final String rawStatement;
-    private List<SourceFragment> sourceFragments;
+    private final String encodedExpr;
 
-    public QLambda(int argCount, String rawStatement) {
-        this.argCount = argCount;
-        this.rawStatement = rawStatement;
+    // 종속된 Alias(Attr, Lambda, Join) 목록
+//    private final HashMap<String, AliasNode> references = new HashMap<>();
+//    private final HashMap<String, QJoin> innerJoins = new HashMap<>();
+//    int refCount;
+    boolean inProgress = false;
+
+    public AliasNode(String encodedExpr) {
+        this.encodedExpr = encodedExpr;
     }
 
-    public final String getName() { return name; }
-
-    public final int getArgCount() {
-        return argCount;
-    }
-
-    public final String getRawStatement() {
-        return rawStatement;
-    }
-
-    public final String inflateStatement(SqlBuilder generator, List<String> args) {
-        if (sourceFragments == null) {
-            sourceFragments = parseRawStatement(generator);
-        }
-        StringBuilder sb = new StringBuilder();
-        for (SourceFragment sf : sourceFragments) {
-            sb.append(sf.getSql(args));
-        }
-        return sb.toString();
-    }
-
-    public void init(HSchema relation, String name) {
-        this.relation = relation;
+    final void setName(String name) {
         this.name = name;
     }
 
-    private interface SourceFragment {
+    public final String getName() {
+        if (name == null) throw new AssertionError();
+        return name;
+    }
+
+    public final String getEncodedExpr() {
+        return encodedExpr;
+    }
+    protected synchronized final String inflateStatement(SqlBuilder generator, String paramName) {
+        if (inProgress) {
+            throw new IllegalStateException("Circular attribute reference is found.");
+        }
+        try {
+            inProgress = true;
+            String expr = PredicateTranslator.translate(generator, paramName, encodedExpr);
+            return expr;
+        } finally {
+            inProgress = false;
+        }
+    }
+
+
+//    final void addReference(AliasNode alias) {
+//        if (!this.references.containsKey(alias.getName())) {
+//            alias.refCount++;
+//            this.references.put(alias.getName(), alias);
+//        }
+//    }
+//
+//    final void addInnerJoin(QJoin join) {
+//// this.innerJoins.put(join.getName(), join);
+//    }
+//
+//
+//    final HashMap<String, AliasNode> getReferences() {
+//        return references;
+//    }
+//
+//    final HashMap<String, QJoin> getInnerJoins() {
+//        return innerJoins;
+//    }
+//
+//    protected QJoin getJoin(String alias) {
+//        return innerJoins.get(alias);
+//    }
+//
+//    @Override
+//    public int hashCode() {
+//        return name.hashCode();
+//    }
+
+    protected interface SourceFragment {
         String getSql(List<String> args);
         class Text implements SourceFragment {
             String sql;
@@ -68,9 +98,9 @@ public class QLambda {
         }
     }
 
-    private List<SourceFragment> parseRawStatement(SqlBuilder generator) {
-        LambdaLexer lexer = new LambdaLexer(CharStreams.fromString(rawStatement));
-        LambdaParser parser = new LambdaParser(new CommonTokenStream(lexer));
+    protected List<SourceFragment> parseRawStatement(SqlBuilder generator) {
+        org.slowcoders.hql.core.antlr.LambdaLexer lexer = new org.slowcoders.hql.core.antlr.LambdaLexer(CharStreams.fromString(getEncodedExpr()));
+        org.slowcoders.hql.core.antlr.LambdaParser parser = new org.slowcoders.hql.core.antlr.LambdaParser(new CommonTokenStream(lexer));
         ParseTree tree = parser.expr();
 
         LambdaSplitter rewriter = new LambdaSplitter(generator);
@@ -120,7 +150,7 @@ public class QLambda {
         }
     }
 
-    static class LambdaSplitter extends LambdaBaseVisitor<String> {
+    static class LambdaSplitter extends org.slowcoders.hql.core.antlr.LambdaBaseVisitor<String> {
         private final SqlBuilder relation;
         SourceBuffer sb = new SourceBuffer();
 
@@ -129,12 +159,12 @@ public class QLambda {
         }
 
         @Override
-        public String visitMacroInvocation(LambdaParser.MacroInvocationContext ctx) {
+        public String visitMacroInvocation(org.slowcoders.hql.core.antlr.LambdaParser.MacroInvocationContext ctx) {
             String property = ctx.property().getText();
             List<String> callArgs = new ArrayList<>();
 
             SourceBuffer old_sb = this.sb;
-            for (LambdaParser.ExprContext arg : ctx.tuple().expr()) {
+            for (org.slowcoders.hql.core.antlr.LambdaParser.ExprContext arg : ctx.tuple().expr()) {
                 this.sb = new SourceBuffer();
                 arg.accept(this);
                 callArgs.add(sb.toString());
@@ -146,14 +176,14 @@ public class QLambda {
         }
 
         @Override
-        public String visitParameter(LambdaParser.ParameterContext ctx) {
+        public String visitParameter(org.slowcoders.hql.core.antlr.LambdaParser.ParameterContext ctx) {
             String idx$ = ctx.getText().substring(1);
             sb.addParam(Integer.parseInt(idx$));
             return "";
         }
 
         @Override
-        public String visitProperty(LambdaParser.PropertyContext ctx) {
+        public String visitProperty(org.slowcoders.hql.core.antlr.LambdaParser.PropertyContext ctx) {
             String property = ctx.getText();
             String v = relation.resolveProperty(property);
             sb.addText(v);

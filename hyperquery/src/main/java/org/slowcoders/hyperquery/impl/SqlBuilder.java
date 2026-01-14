@@ -1,9 +1,6 @@
 package org.slowcoders.hyperquery.impl;
 
-import org.slowcoders.hyperquery.core.QEntity;
-import org.slowcoders.hyperquery.core.QFilter;
-import org.slowcoders.hyperquery.core.QJoin;
-import org.slowcoders.hyperquery.core.QRecord;
+import org.slowcoders.hyperquery.core.*;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -15,13 +12,16 @@ public class SqlBuilder extends ViewNode {
     private final Class<? extends QRecord<?>> resultType;
     private final QFilter<?> filter;
 
+    private final ViewResolver viewResolver;
+
     private ViewNode currView = this;
     private JoinNode currNode;
 
-    public <R extends QRecord<E>, E extends QEntity<E>> SqlBuilder(Class<R> resultType, QFilter<E> filter) {
+    public <R extends QRecord<E>, E extends QEntity<E>> SqlBuilder(Class<R> resultType, QFilter<E> filter, ViewResolver viewResolver ) {
         this.rootSchema = HSchema.getSchema(resultType);
         this.resultType = resultType;
         this.filter = filter;
+        this.viewResolver = viewResolver;
         this.currNode = new JoinNode(rootSchema, "t_0");
         if (filter != null && HSchema.getSchema(filter.getClass()) != this.rootSchema) {
             throw new IllegalArgumentException("Filter type is not related to result type.");
@@ -170,7 +170,7 @@ public class SqlBuilder extends ViewNode {
         String tableName = node.model.getTableName();
         if (tableName.isEmpty()) {
             sb.append(alias).append(" AS (\n");
-            sb.append(node.model.getQuery()).append("), ");
+            sb.append(node.model.getQuery(viewResolver)).append("), ");
             return tableName;
         }
 

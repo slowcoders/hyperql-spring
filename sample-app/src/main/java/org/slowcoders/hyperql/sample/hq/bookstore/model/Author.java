@@ -5,10 +5,9 @@ import lombok.Getter;
 import lombok.Setter;
 import org.slowcoders.hyperquery.core.QEntity;
 import org.slowcoders.hyperquery.core.QFrom;
-import org.slowcoders.hyperquery.impl.QAttribute;
+import org.slowcoders.hyperquery.core.QAttribute;
 
 import java.util.List;
-import java.util.Set;
 
 
 @Getter

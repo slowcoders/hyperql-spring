@@ -4,11 +4,14 @@ import org.slowcoders.hyperql.sample.hq.bookstore.BookDto;
 import org.slowcoders.hyperql.sample.hq.bookstore.BookFilter;
 import org.slowcoders.hyperql.sample.hq.bookstore.BookService;
 import org.slowcoders.hyperql.sample.hq.bookstore.model.Book;
+import org.slowcoders.hyperql.sample.hq.bookstore.model.BookSales;
+import org.slowcoders.hyperquery.core.QFilter;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -29,5 +32,18 @@ public class HqBookController {
     @GetMapping("/{id}")
     public List<BookDto> get(@PathVariable("id") String id) {
         return service.selectList(BookDto.class, null);
+    }
+
+    @GetMapping("/sales")
+    public BookSales getSalesSummary(BookSalesFilter salesFilter) {
+
+        return service.selectOne(BookSales.class, salesFilter);
+    }
+
+    public static class BookSalesFilter extends QFilter<BookSales> {
+        LocalDate startDate;
+        LocalDate endDate;
+
+        Integer bookId;
     }
 }

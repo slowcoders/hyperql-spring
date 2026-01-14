@@ -1,13 +1,5 @@
 package org.slowcoders.hyperquery.core;
 
-import org.slowcoders.hyperquery.impl.HSchema;
-import org.slowcoders.hyperquery.impl.QAttribute;
-import org.slowcoders.hyperquery.impl.QLambda;
-import org.slowcoders.hyperquery.impl.QRepository;
-
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-
 public interface QRecord<T extends QRecord<T>> {
 
 //    @Retention(RetentionPolicy.RUNTIME)

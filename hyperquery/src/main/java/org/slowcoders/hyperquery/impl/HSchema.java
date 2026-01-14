@@ -12,6 +12,8 @@ import java.util.Map;
 public class HSchema extends HModel {
     private final Class<? extends QRecord<?>> entityType;
     private final String tableName;
+
+    private String query;
     private Map<String, QJoin> joins;
     private Map<String, QLambda> lambdas;
     private Map<String, QAttribute> attributes;
@@ -21,7 +23,18 @@ public class HSchema extends HModel {
     public HSchema(Class<? extends QRecord<?>> entityType) {
         this.entityType = entityType;
         QFrom from = entityType.getAnnotation(QFrom.class);
-        this.tableName = from.value();
+        if (from != null) {
+            this.tableName = from.value();
+        } else {
+            QFromMapper mapper = entityType.getAnnotation(QFromMapper.class);
+            if (mapper == null) {
+                throw new RuntimeException("No @QFrom or @QFromMapper annotation found for " + entityType.getName());
+            }
+            if (mapper.sqlId().isEmpty()) {
+                throw new RuntimeException("No SQL ID found for " + entityType.getName());
+            }
+            this.tableName = "";
+        }
     }
     public final Class<? extends QRecord<?>> getEntityType() { return entityType; }
 
@@ -60,17 +73,19 @@ public class HSchema extends HModel {
                 if (QJoin.class.isAssignableFrom(propertyType)) {
                     f.setAccessible(true);
                     QJoin join = (QJoin) f.get(null);
+                    ((AliasNode)join).setName(f.getName());
                     joins.put("@" + f.getName(), join);
                 }
                 else if (QLambda.class.isAssignableFrom(propertyType)) {
                     f.setAccessible(true);
                     QLambda lambda = (QLambda) f.get(null);
-                    lambda.init(this, f.getName());
+                    ((AliasNode)lambda).setName(f.getName());
                     lambdas.put(f.getName(), lambda);
                 }
                 else if (QAttribute.class.isAssignableFrom(propertyType)) {
                     f.setAccessible(true);
                     QAttribute attr = (QAttribute) f.get(null);
+                    ((AliasNode)attr).setName(f.getName());
                     attributes.put(f.getName(), attr);
                 }
             }
@@ -127,8 +142,11 @@ public class HSchema extends HModel {
     }
 
     @Override
-    protected String getQuery() {
-        return "";
+    protected String getQuery(ViewResolver viewResolver) {
+        if (this.query == null) {
+            this.query = viewResolver.resolveView(this.entityType);
+        }
+        return this.query;
     }
 
     @Override
