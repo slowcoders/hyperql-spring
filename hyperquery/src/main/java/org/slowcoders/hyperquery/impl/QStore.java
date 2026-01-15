@@ -180,6 +180,7 @@ public class QStore<T> implements ViewResolver {
         else {
             sqlSource = new XMLScriptBuilder(configuration, fr).parseScriptNode();
         }
+        String sql = fr.getNode().getTextContent();
 
         final boolean disableDynamicParameter = false;
         if (true) {
@@ -187,7 +188,13 @@ public class QStore<T> implements ViewResolver {
             if (disableDynamicParameter && !bsql.getParameterMappings().isEmpty()) {
                 throw new IllegalArgumentException("View statement should not contain dynamic parameters. " + bsql.getParameterMappings());
             }
-            System.out.println(bsql.getSql());
+
+            String ps1 = new GenericTokenParser("#{", "}", (String s) -> "?").parse(sql);
+            int cnt_qm_1 = countQuestionMarkAnd$(ps1);
+            int cnt_qm_2 = countQuestionMarkAnd$(bsql.getSql());
+            if (cnt_qm_1 != cnt_qm_2) {
+                throw new IllegalArgumentException("View expression should not contain conditional expression like <if>, <choose>, <foreach>. But current is \n" + fr.toString());
+            }
         }
 
         if (false) {
@@ -195,8 +202,18 @@ public class QStore<T> implements ViewResolver {
             Object res = sqlSessionTemplate.selectList(mapperId, mapperParams);
             System.out.println(res);
         }
-        String sql = fr.getNode().getTextContent();
         return sql;
+    }
+
+    int countQuestionMarkAnd$(String sql) {
+        int count = 0;
+        for (int i = 0; i < sql.length(); i++) {
+            switch (sql.charAt(i)) {
+                case '?': case '$':
+                    count++;
+            }
+        }
+        return count;
     }
 
     static class ScriptBuilder extends XMLScriptBuilder {

@@ -20,7 +20,7 @@ public class HSchema extends HModel {
 
     private static final HashMap<Class<?>, HSchema> relations = new HashMap<>();
 
-    public HSchema(Class<? extends QRecord<?>> entityType) {
+    private HSchema(Class<? extends QRecord<?>> entityType) {
         this.entityType = entityType;
         QFrom from = entityType.getAnnotation(QFrom.class);
         if (from != null) {

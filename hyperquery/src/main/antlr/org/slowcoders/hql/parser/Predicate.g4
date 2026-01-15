@@ -10,6 +10,7 @@ parse
 expr
     : (macroInvocation
     | parameter
+    | mapperParameter
     | property
     | joinTargetAttr
     | tuple
@@ -24,6 +25,10 @@ macroInvocation
 
 parameter
     : '?' ('.' Identifier)*
+    ;
+
+mapperParameter
+    : '#{' QualifiedIndetifier '}'
     ;
 
 property
