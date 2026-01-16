@@ -1,7 +1,7 @@
 package org.slowcoders.hyperquery.impl;
 
-import org.slowcoders.hyperquery.core.QRecord;
+import java.util.Map;
 
 public interface ViewResolver {
-    String resolveView(Class<? extends QRecord<?>> entityType);
+    String resolveView(String namespace, String sqlFragmentId, Map<String, String> properties);
 }

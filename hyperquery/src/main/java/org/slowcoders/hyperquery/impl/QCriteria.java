@@ -21,8 +21,10 @@ public class QCriteria extends ArrayList<String> {
     }
 
     static QCriteria parse(SqlBuilder generator, QFilter<?> filter, String s) {
-        Stack<QCriteria> prStack = new Stack<>();
         QCriteria criteria = new QCriteria(QCriteria.LogicalOp.AND);
+        if (filter == null) return criteria;
+
+        Stack<QCriteria> prStack = new Stack<>();
 
         try {
             for (Field f : filter.getClass().getDeclaredFields()) {

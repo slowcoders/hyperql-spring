@@ -19,7 +19,7 @@ public class QJoin extends AliasNode {
     private Class<? extends QEntity<?>> viewType;
 
     // Cross Join 은 지원하지 읺는다.
-    protected QJoin(QInlineView inlineView, String joinOn, boolean toUnique) {
+    protected QJoin(HModel inlineView, String joinOn, boolean toUnique) {
         super(joinOn);
         this.viewType = HiddenView.class;
         this.model = inlineView;
@@ -39,7 +39,7 @@ public class QJoin extends AliasNode {
 
     public HModel getTargetRelation() {
         if (model == null) {
-            model = HSchema.registerSchema(viewType);
+            model = HSchema.registerSchema(viewType, false);
         }
         return model;
     }

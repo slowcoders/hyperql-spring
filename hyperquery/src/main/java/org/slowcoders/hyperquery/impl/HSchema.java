@@ -12,27 +12,20 @@ import java.util.Map;
 public class HSchema extends HModel {
     private final Class<? extends QRecord<?>> entityType;
     private final String tableName;
-
-    private String query;
     private Map<String, QJoin> joins;
     private Map<String, QLambda> lambdas;
     private Map<String, QAttribute> attributes;
 
     private static final HashMap<Class<?>, HSchema> relations = new HashMap<>();
 
-    private HSchema(Class<? extends QRecord<?>> entityType) {
+    private HSchema(Class<? extends QRecord<?>> entityType, boolean isEntity) {
         this.entityType = entityType;
         QFrom from = entityType.getAnnotation(QFrom.class);
         if (from != null) {
             this.tableName = from.value();
+        } else if (isEntity) {
+            throw new RuntimeException("No @QFrom or @QFromMapper annotation found for " + entityType.getName());
         } else {
-            QFromMapper mapper = entityType.getAnnotation(QFromMapper.class);
-            if (mapper == null) {
-                throw new RuntimeException("No @QFrom or @QFromMapper annotation found for " + entityType.getName());
-            }
-            if (mapper.sqlId().isEmpty()) {
-                throw new RuntimeException("No SQL ID found for " + entityType.getName());
-            }
             this.tableName = "";
         }
     }
@@ -46,13 +39,13 @@ public class HSchema extends HModel {
     public QLambda getLambda(String alias) {
         return lambdas.get(alias);
     }
-    public static HSchema registerSchema(Class<? extends QEntity<?>> clazz) {
+    public static HSchema registerSchema(Class<? extends QRecord<?>> clazz, boolean isEntity) {
         HSchema relation = relations.get(clazz);
         if (relation == null) {
             synchronized (relations) {
                 relation = relations.get(clazz);
                 if (relation == null) {
-                    relation = new HSchema(clazz);
+                    relation = new HSchema(clazz, isEntity);
                     relations.put(clazz, relation);
                 }
             }
@@ -98,7 +91,7 @@ public class HSchema extends HModel {
         this.attributes = attributes;
     }
 
-    static HSchema getSchema(Class<?> clazz) {
+    static HSchema getSchema(Class<?> clazz, boolean isEntity) {
         HSchema schema = relations.get(clazz);
         if (schema != null) return schema;
 
@@ -129,7 +122,7 @@ public class HSchema extends HModel {
                 throw new IllegalArgumentException(clazz.getName() + " is not valid a model(QEntity, QRecord or QFilter)");
             }
         }
-        schema = HSchema.registerSchema((Class<? extends QEntity<?>>) genericClass);
+        schema = HSchema.registerSchema((Class<? extends QEntity<?>>) genericClass, isEntity);
         relations.put(genericClass, schema);
         return schema;
     }
@@ -139,14 +132,6 @@ public class HSchema extends HModel {
     @Override
     protected HSchema loadSchema() {
         return this;
-    }
-
-    @Override
-    protected String getQuery(ViewResolver viewResolver) {
-        if (this.query == null) {
-            this.query = viewResolver.resolveView(this.entityType);
-        }
-        return this.query;
     }
 
     @Override
@@ -167,13 +152,15 @@ public class HSchema extends HModel {
         return joins.get(join);
     }
 
-    String getColumnExpr(Field f) {
+    static String getColumnExpr(HModel model, Field f) {
         String columnExpr = HModel.Helper.getColumnName(f);
         if (columnExpr != null) return columnExpr;
-        if (this.attributes != null) {
-            QAttribute attr = this.attributes.get(f.getName());
+        HSchema schema = model.loadSchema();
+        if (schema != null && schema.attributes != null) {
+            QAttribute attr = schema.attributes.get(f.getName());
             if (attr != null) return attr.getEncodedExpr();
         }
         return null;
     }
+
 }

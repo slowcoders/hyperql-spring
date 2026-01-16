@@ -33,5 +33,17 @@ describe('Hyper Query operations', () => {
 
         // expect(customers.length).toBe(1)
     });
+
+    test('Joined Mapper Test', async () => {
+        const filter = {
+            "startDate": '1970-01-01',
+            "endDate": '3070-01-01'
+        }
+        const url = `${baseUrl}/books/3003`
+        const response = await axios.get(url);
+        console.log(response.data);
+
+        // expect(customers.length).toBe(1)
+    });
 });
 

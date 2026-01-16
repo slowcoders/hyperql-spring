@@ -8,7 +8,7 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 public class SqlBuilder extends ViewNode {
-    private final HSchema rootSchema;
+    private final HModel rootSchema;
     private final List<ColumnMapping> columnMappings = new ArrayList<>();
     private final Class<? extends QRecord<?>> resultType;
     private final QFilter<?> filter;
@@ -18,23 +18,23 @@ public class SqlBuilder extends ViewNode {
     private ViewNode currView = this;
     private JoinNode currNode;
 
-    public <R extends QRecord<E>, E extends QEntity<E>> SqlBuilder(Class<R> resultType, QFilter<E> filter, ViewResolver viewResolver ) {
-        this.rootSchema = HSchema.getSchema(resultType);
+    public <R extends QRecord<E>, E extends QEntity<E>> SqlBuilder(HModel schema, Class<R> resultType, QFilter<E> filter, ViewResolver viewResolver ) {
+        this.rootSchema = schema;
         this.resultType = resultType;
         this.filter = filter;
         this.viewResolver = viewResolver;
         this.currNode = new JoinNode(rootSchema, "t_0");
-        if (filter != null && HSchema.getSchema(filter.getClass()) != this.rootSchema) {
+        if (filter != null && HSchema.getSchema(filter.getClass(), false) != this.rootSchema.loadSchema()) {
             throw new IllegalArgumentException("Filter type is not related to result type.");
         }
     }
 
-    public final HSchema getRootSchema() {
+    public final HModel getRootSchema() {
         return rootSchema;
     }
 
     public String build() {
-        List<ColumnMapping> columnMappings = parseSelect(resultType, "");
+        List<ColumnMapping> columnMappings = parseSelect(rootSchema, resultType, "");
         QCriteria criteria = QCriteria.parse(this, filter, "@");
 
         String where = criteria.toString();
@@ -43,7 +43,9 @@ public class SqlBuilder extends ViewNode {
 
         genTableView(sbWith, "t_0", currNode);
         genSelections(sb);
-        genFrom(sb, sbWith);
+        String baseTable = currNode.views.isEmpty() ? rootSchema.getTableName() : "";
+        sb.write("from ").write(baseTable).write(" t_0").write('\n');
+        genJoin(sb, sbWith, currView.joins);
         if (sbWith.length() > 5) {
             sbWith.shrinkLength(2);
             sbWith.writeln();
@@ -152,12 +154,6 @@ public class SqlBuilder extends ViewNode {
         sb.write('\n');
     }
 
-    private void genFrom(SqlWriter sb, SqlWriter sbWith) {
-        HSchema relation = HSchema.getSchema(filter.getClass());
-        String baseTable = currNode.views.isEmpty() ? relation.getTableName() : "";
-        sb.write("from ").write(baseTable).write(" t_0").write('\n');
-        genJoin(sb, sbWith, currView.joins);
-    }
 
     private void genJoin(SqlWriter sb, SqlWriter sbWith, Map<String, JoinNode> joinNodes) {
         for (Map.Entry<String, JoinNode> entry : joinNodes.entrySet()) {
@@ -174,7 +170,7 @@ public class SqlBuilder extends ViewNode {
         if (tableName.isEmpty()) {
             sb.write(alias).write(" AS (\n");
             sb.incTab();
-            sb.write(node.model.getQuery(viewResolver));
+            sb.write(node.model.getTableExpression(viewResolver));
             sb.decTab();
             sb.write("), ");
             return tableName;
@@ -205,15 +201,16 @@ public class SqlBuilder extends ViewNode {
     }
 
     static Pattern ColumnNameOnly = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*");
-    List<ColumnMapping> parseSelect(Class<? extends QRecord<?>> recordType, String propertyPrefix) {
+    List<ColumnMapping> parseSelect(HModel view, Class<? extends QRecord<?>> recordType, String propertyPrefix) {
         try {
             for (Field f : recordType.getDeclaredFields()) {
-                String columnExpr = HModel.Helper.getColumnName(f);
+                String columnExpr = HSchema.getColumnExpr(view, f);
                 if (columnExpr == null) continue;
                 Class<? extends QRecord<?>> elementType = HModel.Helper.getElementType(f);
                 if (QRecord.class.isAssignableFrom(elementType)) {
                     JoinNode node = pushNamespace(columnExpr);
-                    parseSelect(elementType, propertyPrefix + f.getName() + '.');
+                    HSchema subSchema = HSchema.getSchema(elementType, false);
+                    parseSelect(subSchema, elementType, propertyPrefix + f.getName() + '.');
                     setNamespace(node);
                 } else {
                     if (ColumnNameOnly.matcher(columnExpr).matches()) {

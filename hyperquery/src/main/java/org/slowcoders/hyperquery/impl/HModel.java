@@ -15,9 +15,9 @@ public abstract class HModel {
 
     protected abstract HSchema loadSchema();
 
-    protected abstract String getQuery(ViewResolver viewResolver);
-
     protected abstract String getTableName();
+
+    protected String getTableExpression(ViewResolver viewResolver) { return null;}
 
     protected QAttribute getAttribute(String property) {
         return null;

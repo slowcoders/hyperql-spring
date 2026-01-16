@@ -15,6 +15,10 @@ import java.util.Set;
 public class Book implements QEntity<Book> {
 
     static final Join author_ = Join.toOne(Author.class, "#.id = @.author_id");
+
+    static final Join weeklySales = Join.toOne(BookSales.summaries("now()::date - 7", "now()::date"),
+            "#.book_id = @.id");
+
     static final Join bookOrder = Join.toMany(new QInlineView("""
             select book_id, customer.* from bookstore.customer customer
             join bookstore.book_order order_ on order_.customer_id = customer.id

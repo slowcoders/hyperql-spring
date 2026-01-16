@@ -12,6 +12,8 @@ import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.type.SimpleTypeRegistry;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.slowcoders.hyperquery.core.*;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -35,9 +37,8 @@ public class QStore<T> implements ViewResolver {
     }
 
 
-
-    public <E extends QEntity<E>, R extends QRecord<E>> List<R> selectList(Class<R> resultType, QFilter<E> filter) {
-        SqlBuilder gen = new SqlBuilder(resultType, filter, this);
+    public <E extends QEntity<E>, R extends QRecord<E>> List<R> selectList(HModel view, Class<R> resultType, QFilter<E> filter) {
+        SqlBuilder gen = new SqlBuilder(view, resultType, filter, this);
         String sql = gen.build();
 
         String id = registerMapper(null, gen.getRootSchema(), resultType);
@@ -47,6 +48,10 @@ public class QStore<T> implements ViewResolver {
 
         Object res = sqlSessionTemplate.selectList(id, filter);
         return (List) res;
+    }
+
+    public <E extends QEntity<E>, R extends QRecord<E>> List<R> selectList(Class<R> resultType, QFilter<E> filter) {
+        return selectList(HSchema.getSchema(resultType, false), resultType, filter);
     }
 
     public Object getCurrentSessionInfo() {
@@ -91,7 +96,7 @@ public class QStore<T> implements ViewResolver {
         return new ResultMap.Builder(configuration, resultMapId, clazz, resultMappings, true).build();
     }
     
-    String registerMapper(SqlSource sqlSource, HSchema relation, Class<?> resultType) {
+    String registerMapper(SqlSource sqlSource, HModel relation, Class<?> resultType) {
         String id = repositoryType.getName() + ".__select__." + resultType.getName();
 
         if (!configuration.hasStatement(id)) {
@@ -127,134 +132,36 @@ public class QStore<T> implements ViewResolver {
         return id;
     }
 
-    public String getSqlNode(Class<?> mapperClass, String sqlFragmentId) {
-        // <include> 처리.
-        String mapperId = mapperClass.getName() + "." + sqlFragmentId;
-        MapperBuilderAssistant builderAssistant = new MapperBuilderAssistant(configuration, mapperClass.getName() + ".???");
-        XMLIncludeTransformer includeParser = new XMLIncludeTransformer(configuration, builderAssistant);
-        builderAssistant.setCurrentNamespace(mapperClass.getName());
-
-        XNode fr = configuration.getSqlFragments().get(mapperId);
-        includeParser.applyIncludes(fr.getNode());
-        return fr.getStringBody();
-    }
-
-    private String getMapperId(Class<? extends QRecord<?>> resultType) {
-        QFromMapper mapper = resultType.getAnnotation(QFromMapper.class);
-        if (mapper.mapper() == void.class) {
-            return mapper.sqlId();
-        }
-        return mapper.mapper().getName() + "." + mapper.sqlId();
-    }
-
-    public String resolveView(Class<? extends QRecord<?>> resultType) {
-//        Class<?> mapperClass = null // UserMapper.class;
-//        String mapperName = "blockDetailOnDate";
-//        HashMap<String, Object> mapperParams = new HashMap<>();
-//        mapperParams.put("selections", "*");
-//        mapperParams.put("date", "2025-02-08");
-        String mapperId = getMapperId(resultType);
-        HashMap<String, Object> mapperParams = new HashMap<>();
-
+    public String resolveView(String namespace, String sqlFragmentId, Map<String, String> properties) {
+        String mapperId = namespace + "." + sqlFragmentId;
         if (configuration.hasStatement(mapperId)) {
-            MappedStatement ms = configuration.getMappedStatement(mapperId);
-            SqlSource ss = ms.getSqlSource();
-            ss.getBoundSql(mapperParams);
             throw new IllegalArgumentException("Only <sql> fragments can be used to create View.");
         }
 
         // <include> 처리.
-        MapperBuilderAssistant builderAssistant = new MapperBuilderAssistant(configuration, mapperId + ".???");
-        XMLIncludeTransformer includeParser = new XMLIncludeTransformer(configuration, builderAssistant);
-        String namespace = mapperId.substring(0, mapperId.lastIndexOf('.'));
+        MapperBuilderAssistant builderAssistant = new MapperBuilderAssistant(configuration, "???");
         builderAssistant.setCurrentNamespace(namespace);
-
+        XMLIncludeTransformer includeParser = new XMLIncludeTransformer(configuration, builderAssistant);
         XNode fr = configuration.getSqlFragments().get(mapperId);
         includeParser.applyIncludes(fr.getNode());
+        if (!checkValidXmlQuery(fr.getNode())) {
+            throw new IllegalArgumentException("View expression should not contain conditional expression like <if>, <choose>, <foreach>. But current is \n" + fr.toString());
+        }
 
-        // <parameter 처리>
-        SqlSource sqlSource;
-        if (false) {
-//                sqlSource = new ScriptBuilder(configuration, fr).parseScriptNode(mapperParams);
-        }
-        else {
-            sqlSource = new XMLScriptBuilder(configuration, fr).parseScriptNode();
-        }
         String sql = fr.getNode().getTextContent();
-
-        final boolean disableDynamicParameter = false;
-        if (true) {
-            BoundSql bsql = sqlSource.getBoundSql(mapperParams);
-            if (disableDynamicParameter && !bsql.getParameterMappings().isEmpty()) {
-                throw new IllegalArgumentException("View statement should not contain dynamic parameters. " + bsql.getParameterMappings());
-            }
-
-            String ps1 = new GenericTokenParser("#{", "}", (String s) -> "?").parse(sql);
-            int cnt_qm_1 = countQuestionMarkAnd$(ps1);
-            int cnt_qm_2 = countQuestionMarkAnd$(bsql.getSql());
-            if (cnt_qm_1 != cnt_qm_2) {
-                throw new IllegalArgumentException("View expression should not contain conditional expression like <if>, <choose>, <foreach>. But current is \n" + fr.toString());
-            }
-        }
-
-        if (false) {
-            mapperId = registerMapper(sqlSource, HSchema.registerSchema(null), resultType);
-            Object res = sqlSessionTemplate.selectList(mapperId, mapperParams);
-            System.out.println(res);
-        }
+        sql = new GenericTokenParser("${", "}", properties::get).parse(sql);
         return sql;
     }
 
-    int countQuestionMarkAnd$(String sql) {
-        int count = 0;
-        for (int i = 0; i < sql.length(); i++) {
-            switch (sql.charAt(i)) {
-                case '?': case '$':
-                    count++;
-            }
+    private boolean checkValidXmlQuery(Node node) {
+        switch (node.getNodeName()) {
+            case "if": case "choose": case "when": case "foreach":
+                return false;
         }
-        return count;
+        NodeList children = node.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            checkValidXmlQuery(children.item(i));
+        }
+        return true;
     }
-
-    static class ScriptBuilder extends XMLScriptBuilder {
-        private final XNode rootSqlNode;
-
-        ScriptBuilder(Configuration configuration, XNode rootSqlNode) {
-            super(configuration, rootSqlNode);
-            this.rootSqlNode = rootSqlNode;
-        }
-
-        public SqlSource parseScriptNode(Object parameterObject) {
-            if (false) {
-                super.parseScriptNode();
-            }
-            MixedSqlNode nodes = super.parseDynamicTags(rootSqlNode);
-            return buildScriptNode(nodes, parameterObject);
-        }
-
-        public SqlSource buildScriptNode(SqlNode nodes, Object parameterObject) {
-            DynamicContext context = new DynamicContext(configuration, parameterObject);
-            nodes.apply(context);
-            String sql = context.getSql();
-            // context 의 sql 을 변경하고, 다시 작업.
-            GenericTokenParser parser = new GenericTokenParser("#{", "}", new TokenHandler() {
-
-                @Override
-                public String handleToken(String content) {
-                    Object parameter = context.getBindings().get("_parameter");
-                    if (parameter == null) {
-                        context.getBindings().put("value", null);
-                    } else if (SimpleTypeRegistry.isSimpleType(parameter.getClass())) {
-                        context.getBindings().put("value", parameter);
-                    }
-                    Object value = OgnlCache.getValue(content, context.getBindings());
-                    return String.valueOf(value); // issue #274 return "" instead of "null"
-                }
-            });
-            String converted = parser.parse(sql);
-            TextSqlNode textNode = new TextSqlNode(converted);
-            return new RawSqlSource(configuration, textNode, parameterObject.getClass());
-        }
-    }
-
 }

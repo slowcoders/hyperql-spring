@@ -56,9 +56,6 @@
         LEFT JOIN bookstore.book_order s
             ON s.book_id = b.id
             AND s.order_date between #{startDate} and #{endDate}
-        <if test='"${__startDate}" != "\${__startDate}" and __startDate != null'>
-            AND s.order_date between ${startDate} and ${endDate}
-        </if>
 
         GROUP BY b.id, b.title
         order by amount desc

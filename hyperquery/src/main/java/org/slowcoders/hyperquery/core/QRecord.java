@@ -1,6 +1,8 @@
 package org.slowcoders.hyperquery.core;
 
-public interface QRecord<T extends QRecord<T>> {
+import org.slowcoders.hyperquery.impl.HModel;
+
+public interface QRecord<T extends QEntity<T>> {
 
 //    @Retention(RetentionPolicy.RUNTIME)
 //    @interface Property {
@@ -8,7 +10,7 @@ public interface QRecord<T extends QRecord<T>> {
 //    }
 
     public static class Join extends QJoin {
-        private Join(QInlineView view, String joinOn, boolean single) {
+        private Join(HModel view, String joinOn, boolean single) {
             super(view, joinOn, single);
         }
         private Join(Class<? extends QEntity<?>> recordType, String joinOn, boolean single) {
@@ -23,11 +25,11 @@ public interface QRecord<T extends QRecord<T>> {
             return new Join(recordType, joinOn, false);
         }
 
-        public static Join toOne(QInlineView view, String joinOn) {
+        public static Join toOne(HModel view, String joinOn) {
             return new Join(view, joinOn, true);
         }
 
-        public static Join toMany(QInlineView view, String joinOn) {
+        public static Join toMany(HModel view, String joinOn) {
             return new Join(view, joinOn, false);
         }
     }
