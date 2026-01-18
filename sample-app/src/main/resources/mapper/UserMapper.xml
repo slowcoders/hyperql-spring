@@ -47,15 +47,28 @@
             count(*) AS count,
             max(b.price) * count(*) AS amount,
             row_number() over (order by count(*) desc) as ranking
+            <if test='"${not_allowed}" != "\${not_allowed}"'>
+                Can not read property!!!
+            </if>
     </sql>
 
     <sql id="bookSales">
         SELECT
-            <include refid="bookSales_columns" />
+            <if test='"${startDate}" != "\${startDate}"'>
+                b.title as title1,
+            </if>
+            <include refid="bookSales_columns">
+                <property name="p1" value="aaa"/>
+            </include>
         FROM bookstore.book b
         LEFT JOIN bookstore.book_order s
             ON s.book_id = b.id
-            AND s.order_date between #{startDate} and #{endDate}
+        <if test='"${startDate}" != "\${startDate}"'>
+            AND s.order_date >= ${startDate}
+        </if>
+        <if test='"${endDate}" != "\${endDate}"'>
+            AND s.order_date <![CDATA[ >= ]]> ${endDate}
+        </if>
 
         GROUP BY b.id, b.title
         order by amount desc

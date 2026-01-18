@@ -1,7 +1,11 @@
 package org.slowcoders.hyperquery.impl;
 
+import org.apache.ibatis.parsing.GenericTokenParser;
+import org.apache.ibatis.parsing.XNode;
+import org.apache.ibatis.parsing.XPathParser;
 import org.slowcoders.hyperquery.core.*;
 import org.slowcoders.hyperquery.util.SqlWriter;
+import org.w3c.dom.Node;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -18,6 +22,25 @@ public class SqlBuilder extends ViewNode {
     private ViewNode currView = this;
     private JoinNode currNode;
 
+    private SqlWriter sbWith = new SqlWriter().write("WITH ");
+    private SqlWriter sbQuery = new SqlWriter();
+
+    private XPathParser xpathParser;
+
+    private final Node rootNode;
+    private final XNode rootSqlNode;
+
+    private static final String emptyXml = """
+    <?xml version="1.0" encoding="UTF-8" ?>
+    <sql/>""";
+
+    static String ss = """
+                <!DOCTYPE mapper
+            PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+            "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+            """;
+
     public <R extends QRecord<E>, E extends QEntity<E>> SqlBuilder(HModel schema, Class<R> resultType, QFilter<E> filter, ViewResolver viewResolver ) {
         this.rootSchema = schema;
         this.resultType = resultType;
@@ -27,34 +50,49 @@ public class SqlBuilder extends ViewNode {
         if (filter != null && HSchema.getSchema(filter.getClass(), false) != this.rootSchema.loadSchema()) {
             throw new IllegalArgumentException("Filter type is not related to result type.");
         }
+        this.xpathParser = new XPathParser(emptyXml);
+        this.rootSqlNode = xpathParser.evalNode("/sql");
+        this.rootNode = rootSqlNode.getNode();
     }
 
     public final HModel getRootSchema() {
         return rootSchema;
     }
 
-    public String build() {
+    public HQuery build() {
         List<ColumnMapping> columnMappings = parseSelect(rootSchema, resultType, "");
         QCriteria criteria = QCriteria.parse(this, filter, "@");
 
         String where = criteria.toString();
-        SqlWriter sbWith = new SqlWriter().write("WITH ");
-        SqlWriter sb = new SqlWriter();
 
-        genTableView(sbWith, "t_0", currNode);
-        genSelections(sb);
+        genTableView("t_0", currNode);
+        genSelections();
         String baseTable = currNode.views.isEmpty() ? rootSchema.getTableName() : "";
-        sb.write("from ").write(baseTable).write(" t_0").write('\n');
-        genJoin(sb, sbWith, currView.joins);
-        if (sbWith.length() > 5) {
+        sbQuery.write("from ").write(baseTable).write(" t_0").write('\n');
+        genJoin(currView.joins);
+
+        boolean needMapper = rootNode.hasChildNodes();
+        if (sbWith.length() > 5 || needMapper) {
             sbWith.shrinkLength(2);
             sbWith.writeln();
-            sbWith.write(sb.toString());
-            sb = sbWith;
+            if (needMapper) {
+                sbWith.write("${__sql__}");
+                addTextNode(sbWith.reset());
+            } else {
+                sbWith.write(sbQuery.reset());
+                sbQuery = sbWith;
+            }
         }
-        sb.write("WHERE ").write(where);
-        String sql = sb.toString();
-        return sql;
+
+        sbQuery.write("WHERE ").write(where);
+        String sql = sbQuery.toString();
+//        return sql;
+        return new HQuery(needMapper ? rootSqlNode : null, sql);
+    }
+
+    void addTextNode(String s) {
+        Node text = rootNode.getOwnerDocument().createTextNode(s);
+        rootNode.appendChild(text);
     }
 
 
@@ -143,36 +181,48 @@ public class SqlBuilder extends ViewNode {
         return res;
     }
 
-    private void genSelections(SqlWriter sb) {
-        sb.write("SELECT ");
-        sb.incTab();
+    private void genSelections() {
+        sbQuery.write("SELECT ");
+        sbQuery.incTab();
         for (ColumnMapping col : columnMappings) {
-            sb.write(col.columnName).write(" as \"").write(col.fieldName).write("\",\n");
+            sbQuery.write(col.columnName).write(" as \"").write(col.fieldName).write("\",\n");
         }
-        sb.shrinkLength(2);
-        sb.decTab();
-        sb.write('\n');
+        sbQuery.shrinkLength(2);
+        sbQuery.decTab();
+        sbQuery.write('\n');
     }
 
 
-    private void genJoin(SqlWriter sb, SqlWriter sbWith, Map<String, JoinNode> joinNodes) {
+    private void genJoin(Map<String, JoinNode> joinNodes) {
         for (Map.Entry<String, JoinNode> entry : joinNodes.entrySet()) {
             String alias = entry.getKey();
             JoinNode node = entry.getValue();
-            String tableName = genTableView(sbWith, alias, node);
-            sb.write("left join ").write(tableName).write(" ").write(alias);
-            sb.write("\n on ").write(node.joinCriteria).write('\n');
+            String tableName = genTableView(alias, node);
+            sbQuery.write("left join ").write(tableName).write(" ").write(alias);
+            sbQuery.write("\n on ").write(node.joinCriteria).write('\n');
         }
     }
 
-    private String genTableView(SqlWriter sb, String alias, JoinNode node) {
+    private String genTableView(String alias, JoinNode node) {
         String tableName = node.model.getTableName();
         if (tableName.isEmpty()) {
-            sb.write(alias).write(" AS (\n");
-            sb.incTab();
-            sb.write(node.model.getTableExpression(viewResolver));
-            sb.decTab();
-            sb.write("), ");
+            sbWith.write(alias).write(" AS (\n");
+            sbWith.incTab();
+            Object expr = node.model.getTableExpression(viewResolver);
+            if (expr instanceof Node) {
+                if (sbWith.length() > 0) {
+                    addTextNode(sbWith.reset());
+                }
+                Node child = ((Node)expr).getFirstChild();
+                for (; child != null; child = child.getNextSibling()) {
+                    Node newChild = rootNode.getOwnerDocument().importNode(child, true);
+                    rootNode.appendChild(newChild);
+                }
+            } else {
+                sbWith.write(expr.toString());
+            }
+            sbWith.decTab();
+            sbWith.write("), ");
             return tableName;
         }
 
@@ -180,21 +230,21 @@ public class SqlBuilder extends ViewNode {
 
         for (int idx = node.views.size(); --idx >= 0;) {
             ViewNode attrMap = node.views.get(idx);
-            sb.write(alias);
-            if (idx > 0) sb.write('_').write(idx);
-            sb.write(" AS (\n");
-            sb.write("SELECT ").write(alias).write(".*");
-            sb.incTab();
+            sbWith.write(alias);
+            if (idx > 0) sbWith.write('_').write(idx);
+            sbWith.write(" AS (\n");
+            sbWith.write("SELECT ").write(alias).write(".*");
+            sbWith.incTab();
             for (Map.Entry<String, String> attr : attrMap.usedAttributes.entrySet()) {
                 String name = attr.getKey();
                 String expr = attr.getValue();
-                sb.write("\n, ").write(expr).write(" as ").write(name);
+                sbWith.write("\n, ").write(expr).write(" as ").write(name);
             }
-            sb.decTab();
-            sb.write("\nFROM ").write(tableName);
-            sb.write(" AS ").write(alias).write("\n");
-            genJoin(sb, null, attrMap.joins);
-            sb.write("\n), ");
+            sbWith.decTab();
+            sbWith.write("\nFROM ").write(tableName);
+            sbWith.write(" AS ").write(alias).write("\n");
+            genJoin(attrMap.joins);
+            sbWith.write("\n), ");
             tableName = alias + '_' + (idx);
         }
         return "";

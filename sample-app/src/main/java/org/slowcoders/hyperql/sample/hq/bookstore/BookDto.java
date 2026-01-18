@@ -2,6 +2,7 @@ package org.slowcoders.hyperql.sample.hq.bookstore;
 
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 import org.slowcoders.hyperql.sample.hq.bookstore.model.Book;
 import org.slowcoders.hyperql.sample.hq.bookstore.model.BookSales;
 import org.slowcoders.hyperquery.core.QColumn;
@@ -13,6 +14,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 @Getter
+@ToString
 public class BookDto implements QRecord<Book> {
 
     private Long id;

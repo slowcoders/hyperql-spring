@@ -4,14 +4,13 @@ import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.apache.ibatis.builder.xml.XMLIncludeTransformer;
 import org.apache.ibatis.mapping.*;
 import org.apache.ibatis.parsing.GenericTokenParser;
-import org.apache.ibatis.parsing.TokenHandler;
 import org.apache.ibatis.parsing.XNode;
-import org.apache.ibatis.scripting.defaults.RawSqlSource;
 import org.apache.ibatis.scripting.xmltags.*;
 import org.apache.ibatis.session.Configuration;
-import org.apache.ibatis.type.SimpleTypeRegistry;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.slowcoders.hyperquery.core.*;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
@@ -39,11 +38,11 @@ public class QStore<T> implements ViewResolver {
 
     public <E extends QEntity<E>, R extends QRecord<E>> List<R> selectList(HModel view, Class<R> resultType, QFilter<E> filter) {
         SqlBuilder gen = new SqlBuilder(view, resultType, filter, this);
-        String sql = gen.build();
+        HQuery node = gen.build();
 
-        String id = registerMapper(null, gen.getRootSchema(), resultType);
+        String id = registerMapper(node.with, resultType);
 
-        HFilter._sql.set(sql);
+        HFilter._sql.set(node.query);
         HFilter._session.set(getCurrentSessionInfo());
 
         Object res = sqlSessionTemplate.selectList(id, filter);
@@ -96,17 +95,25 @@ public class QStore<T> implements ViewResolver {
         return new ResultMap.Builder(configuration, resultMapId, clazz, resultMappings, true).build();
     }
     
-    String registerMapper(SqlSource sqlSource, HModel relation, Class<?> resultType) {
+    String registerMapper(XNode sqlNode, Class<?> resultType) {
         String id = repositoryType.getName() + ".__select__." + resultType.getName();
 
         if (!configuration.hasStatement(id)) {
-            ResultMap inlineResultMap = createNestedResultMap(resultType, id + "-Inline", ""); 
-            List<ResultMap> __resultMaps = new ArrayList<>();
-            __resultMaps.add(inlineResultMap);
 
             String root_id = repositoryType.getName() + ".__select__";
             MappedStatement root_ms = configuration.getMappedStatement(root_id);
-            if (sqlSource == null) sqlSource = root_ms.getSqlSource();
+
+            SqlSource sqlSource;
+            if (sqlNode == null) {
+                sqlSource = root_ms.getSqlSource();
+            } else {
+                sqlSource = new XMLScriptBuilder(configuration, sqlNode).parseScriptNode();
+            }
+
+            ResultMap inlineResultMap = createNestedResultMap(resultType, id + "-Inline", "");
+            List<ResultMap> __resultMaps = new ArrayList<>();
+            __resultMaps.add(inlineResultMap);
+
             MappedStatement.Builder builder = new MappedStatement.Builder(configuration, id, sqlSource, root_ms.getSqlCommandType())
                     .resource(root_ms.getResource())
                     .fetchSize(root_ms.getFetchSize())
@@ -132,7 +139,7 @@ public class QStore<T> implements ViewResolver {
         return id;
     }
 
-    public String resolveView(String namespace, String sqlFragmentId, Map<String, String> properties) {
+    public Object resolveView(String namespace, String sqlFragmentId, Map<String, String> properties) {
         String mapperId = namespace + "." + sqlFragmentId;
         if (configuration.hasStatement(mapperId)) {
             throw new IllegalArgumentException("Only <sql> fragments can be used to create View.");
@@ -143,9 +150,46 @@ public class QStore<T> implements ViewResolver {
         builderAssistant.setCurrentNamespace(namespace);
         XMLIncludeTransformer includeParser = new XMLIncludeTransformer(configuration, builderAssistant);
         XNode fr = configuration.getSqlFragments().get(mapperId);
-        includeParser.applyIncludes(fr.getNode());
-        if (!checkValidXmlQuery(fr.getNode())) {
-            throw new IllegalArgumentException("View expression should not contain conditional expression like <if>, <choose>, <foreach>. But current is \n" + fr.toString());
+        if (fr == null) {
+            throw new IllegalArgumentException("<sql> fragments is not found. " + mapperId);
+        }
+
+        Document doc = fr.getNode().getOwnerDocument();
+        Element include = doc.createElement("include");
+        include.setAttribute("refid", mapperId);
+        for (Map.Entry<String, String> entry : properties.entrySet()) {
+            Element property = doc.createElement("property");
+            property.setAttribute("name", entry.getKey());
+            property.setAttribute("value", entry.getValue());
+            include.appendChild(property);
+        }
+        Element sqlNode = doc.createElement("sql");
+        include.setAttribute("id", mapperId + "-sql");
+        sqlNode.appendChild(include);
+
+
+        includeParser.applyIncludes(sqlNode);
+        if (!checkValidXmlQuery(sqlNode)) {
+            return sqlNode;
+//            GenericTokenParser tokenReplacer1 = new GenericTokenParser("#{", "}", properties::get);
+//            GenericTokenParser tokenReplacer2 = new GenericTokenParser("${", "}", properties::get);
+//            Node child = ((Node)fr.getNode()).getFirstChild();
+//            for (; child != null; child = child.getNextSibling()) {
+//                if (child.getNodeType() == Node.TEXT_NODE) {
+//                    String text = tokenReplacer1.parse(child.getTextContent());
+//                    text = tokenReplacer2.parse(text);
+//                    child.setTextContent(text);
+//                }
+//            }
+//            return fr.getNode();
+//            throw new IllegalArgumentException("View expression should not contain conditional expression like <if>, <choose>, <foreach>. But current is \n" + fr.toString());
+        }
+
+        if (false) {
+            // BoundSql bsql = sqlSource.getBoundSql(mapperParams);
+            mapperId = registerMapper(fr, /*resultType*/null);
+            Object res = sqlSessionTemplate.selectList(mapperId, /*mapperParams*/null);
+            //System.out.println(res);
         }
 
         String sql = fr.getNode().getTextContent();
@@ -160,7 +204,8 @@ public class QStore<T> implements ViewResolver {
         }
         NodeList children = node.getChildNodes();
         for (int i = 0; i < children.getLength(); i++) {
-            checkValidXmlQuery(children.item(i));
+            if (!checkValidXmlQuery(children.item(i)))
+                return false;
         }
         return true;
     }

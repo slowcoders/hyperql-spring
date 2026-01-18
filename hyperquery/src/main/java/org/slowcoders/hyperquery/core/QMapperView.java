@@ -3,6 +3,7 @@ package org.slowcoders.hyperquery.core;
 import org.slowcoders.hyperquery.impl.HModel;
 import org.slowcoders.hyperquery.impl.HSchema;
 import org.slowcoders.hyperquery.impl.ViewResolver;
+import org.w3c.dom.Node;
 
 import java.util.Map;
 
@@ -13,7 +14,7 @@ public class QMapperView<R extends QRecord<?>> extends HModel {
     private final String namespace;
     private final String sqlId;
     private final Map<String, String> properties;
-    private String query;
+    private Object query;
 
     public QMapperView(Class<R> recordType, Class<?> mapper, String sqlId) {
         this(recordType, mapper.getName(), sqlId);
@@ -40,7 +41,7 @@ public class QMapperView<R extends QRecord<?>> extends HModel {
     }
 
     @Override
-    protected String getTableExpression(ViewResolver viewResolver) {
+    protected Object getTableExpression(ViewResolver viewResolver) {
         if (query == null) {
             query = viewResolver.resolveView(namespace, sqlId, properties);
         }
@@ -50,5 +51,13 @@ public class QMapperView<R extends QRecord<?>> extends HModel {
     @Override
     protected String getTableName() {
         return "";
+    }
+
+    public String getMapperId() {
+        return namespace + '.' + sqlId;
+    }
+
+    public final Map<String, String> getProperties() {
+        return properties;
     }
 }

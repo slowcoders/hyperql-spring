@@ -17,7 +17,7 @@ public abstract class HModel {
 
     protected abstract String getTableName();
 
-    protected String getTableExpression(ViewResolver viewResolver) { return null;}
+    protected Object getTableExpression(ViewResolver viewResolver) { return ""; }
 
     protected QAttribute getAttribute(String property) {
         return null;
