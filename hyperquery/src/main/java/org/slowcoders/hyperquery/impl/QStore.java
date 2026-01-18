@@ -38,15 +38,20 @@ public class QStore<T> implements ViewResolver {
 
     public <E extends QEntity<E>, R extends QRecord<E>> List<R> selectList(HModel view, Class<R> resultType, QFilter<E> filter) {
         SqlBuilder gen = new SqlBuilder(view, resultType, filter, this);
-        HQuery node = gen.build();
+        HQuery query = gen.build();
 
-        String id = registerMapper(node.with, resultType);
+        String id = registerMapper(query.with, resultType);
 
-        HFilter._sql.set(node.query);
+        HFilter._sql.set(query.query);
         HFilter._session.set(getCurrentSessionInfo());
 
-        Object res = sqlSessionTemplate.selectList(id, filter);
-        return (List) res;
+        try {
+            Object res = sqlSessionTemplate.selectList(id, filter);
+            return (List) res;
+        } catch (RuntimeException e) {
+            System.out.println("Execution failed\n" + query.toString());
+            throw e;
+        }
     }
 
     public <E extends QEntity<E>, R extends QRecord<E>> List<R> selectList(Class<R> resultType, QFilter<E> filter) {
@@ -61,12 +66,12 @@ public class QStore<T> implements ViewResolver {
         List<ResultMapping> resultMappings = new ArrayList<>();
 
         for (Field f : clazz.getDeclaredFields()) {
-            String columnName = HModel.Helper.getColumnName(f); // @TColumn 등에서 컬럼명 추출
+            String columnName = HSchema.Helper.getColumnName(f); // @TColumn 등에서 컬럼명 추출
             if (columnName == null) continue;
 
-            if (HModel.Helper.isCollectionType(f)) {
+            if (HSchema.Helper.isCollectionType(f)) {
                 // 1:N Collection 매핑 처리
-                Class<?> listItemType = HModel.Helper.getElementType(f); // List의 제네릭 타입 추출 (예: HpcaTransactionPost)
+                Class<?> listItemType = HSchema.Helper.getElementType(f); // List의 제네릭 타입 추출 (예: HpcaTransactionPost)
 
                 // 자식 엔티티를 위한 중첩 ResultMap 생성/참조
                 String nestedMapId = resultMapId + "." + f.getName();
@@ -84,7 +89,7 @@ public class QStore<T> implements ViewResolver {
                 resultMappings.add(mapping);
             } else if (true || propertyPrefix.isEmpty() /* top level only ?? */) {
                 // 일반 컬럼 매핑 (ID 또는 Result)
-                boolean isPK = HModel.Helper.isUniqueKey(f);
+                boolean isPK = HSchema.Helper.isUniqueKey(f);
                 ResultMapping mapping = new ResultMapping.Builder(configuration, f.getName(), f.getName(), f.getType())
                         .flags(isPK ? Collections.singletonList(ResultFlag.ID) : Collections.emptyList())
                         .build();
@@ -145,10 +150,6 @@ public class QStore<T> implements ViewResolver {
             throw new IllegalArgumentException("Only <sql> fragments can be used to create View.");
         }
 
-        // <include> 처리.
-        MapperBuilderAssistant builderAssistant = new MapperBuilderAssistant(configuration, "???");
-        builderAssistant.setCurrentNamespace(namespace);
-        XMLIncludeTransformer includeParser = new XMLIncludeTransformer(configuration, builderAssistant);
         XNode fr = configuration.getSqlFragments().get(mapperId);
         if (fr == null) {
             throw new IllegalArgumentException("<sql> fragments is not found. " + mapperId);
@@ -167,22 +168,13 @@ public class QStore<T> implements ViewResolver {
         include.setAttribute("id", mapperId + "-sql");
         sqlNode.appendChild(include);
 
-
+        // <include> 처리.
+        MapperBuilderAssistant builderAssistant = new MapperBuilderAssistant(configuration, "???");
+        builderAssistant.setCurrentNamespace(namespace);
+        XMLIncludeTransformer includeParser = new XMLIncludeTransformer(configuration, builderAssistant);
         includeParser.applyIncludes(sqlNode);
-        if (!checkValidXmlQuery(sqlNode)) {
+        if (isDynamicXmlQuery(sqlNode)) {
             return sqlNode;
-//            GenericTokenParser tokenReplacer1 = new GenericTokenParser("#{", "}", properties::get);
-//            GenericTokenParser tokenReplacer2 = new GenericTokenParser("${", "}", properties::get);
-//            Node child = ((Node)fr.getNode()).getFirstChild();
-//            for (; child != null; child = child.getNextSibling()) {
-//                if (child.getNodeType() == Node.TEXT_NODE) {
-//                    String text = tokenReplacer1.parse(child.getTextContent());
-//                    text = tokenReplacer2.parse(text);
-//                    child.setTextContent(text);
-//                }
-//            }
-//            return fr.getNode();
-//            throw new IllegalArgumentException("View expression should not contain conditional expression like <if>, <choose>, <foreach>. But current is \n" + fr.toString());
         }
 
         if (false) {
@@ -197,16 +189,16 @@ public class QStore<T> implements ViewResolver {
         return sql;
     }
 
-    private boolean checkValidXmlQuery(Node node) {
+    private boolean isDynamicXmlQuery(Node node) {
         switch (node.getNodeName()) {
-            case "if": case "choose": case "when": case "foreach":
-                return false;
+            case "if": case "choose": case "when": case "foreach": case "bind":
+                return true;
         }
         NodeList children = node.getChildNodes();
         for (int i = 0; i < children.getLength(); i++) {
-            if (!checkValidXmlQuery(children.item(i)))
-                return false;
+            if (isDynamicXmlQuery(children.item(i)))
+                return true;
         }
-        return true;
+        return false;
     }
 }

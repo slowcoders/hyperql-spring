@@ -1,6 +1,5 @@
 package org.slowcoders.hyperquery.impl;
 
-import org.apache.ibatis.parsing.GenericTokenParser;
 import org.apache.ibatis.parsing.XNode;
 import org.apache.ibatis.parsing.XPathParser;
 import org.slowcoders.hyperquery.core.*;
@@ -256,7 +255,7 @@ public class SqlBuilder extends ViewNode {
             for (Field f : recordType.getDeclaredFields()) {
                 String columnExpr = HSchema.getColumnExpr(view, f);
                 if (columnExpr == null) continue;
-                Class<? extends QRecord<?>> elementType = HModel.Helper.getElementType(f);
+                Class<? extends QRecord<?>> elementType = HSchema.Helper.getElementType(f);
                 if (QRecord.class.isAssignableFrom(elementType)) {
                     JoinNode node = pushNamespace(columnExpr);
                     HSchema subSchema = HSchema.getSchema(elementType, false);

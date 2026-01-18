@@ -1,11 +1,13 @@
 package org.slowcoders.hyperquery.impl;
 
+import jakarta.persistence.Column;
 import org.slowcoders.hyperquery.core.*;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -153,7 +155,7 @@ public class HSchema extends HModel {
     }
 
     static String getColumnExpr(HModel model, Field f) {
-        String columnExpr = HModel.Helper.getColumnName(f);
+        String columnExpr = Helper.getColumnName(f);
         if (columnExpr != null) return columnExpr;
         HSchema schema = model.loadSchema();
         if (schema != null && schema.attributes != null) {
@@ -163,4 +165,43 @@ public class HSchema extends HModel {
         return null;
     }
 
+    static class Helper implements QEntity<Helper> {
+        static String getColumnName(Field f) {
+            QColumn anno = f.getAnnotation(QColumn.class);
+            if (anno != null) return anno.value();
+
+            PKColumn pk = f.getAnnotation(PKColumn.class);
+            if (pk != null) return pk.value();
+
+            TColumn tcol = f.getAnnotation(TColumn.class);
+            if (tcol != null) return tcol.value();
+
+            Column col = f.getAnnotation(Column.class);
+            if (col != null) return col.name();
+
+            return null;
+        }
+
+        public static boolean isUniqueKey(Field f) {
+            return f.getAnnotation(PKColumn.class) != null;
+        }
+
+        public static boolean isCollectionType(Field f) {
+            return f.getType().isArray() || Collection.class.isAssignableFrom(f.getType());
+        }
+
+        static Class<? extends QRecord<?>> getElementType(Field f) {
+            if (f.getType().isArray()) return (Class<? extends QRecord<?>>) f.getType().getComponentType();
+
+            Type type = f.getGenericType();
+            if (type instanceof ParameterizedType) {
+                ParameterizedType pType = (ParameterizedType) type;
+                Type[] typeArguments = pType.getActualTypeArguments();
+                if (typeArguments.length > 0 && typeArguments[0] instanceof Class) {
+                    return (Class<? extends QRecord<?>>) typeArguments[0];
+                }
+            }
+            return (Class<? extends QRecord<?>>) f.getType();
+        }
+    }
 }
