@@ -3,7 +3,6 @@ package org.slowcoders.hyperql.sample.hq.bookstore.api;
 import org.slowcoders.hyperql.sample.hq.bookstore.AuthorDto;
 import org.slowcoders.hyperql.sample.hq.bookstore.AuthorFilter;
 import org.slowcoders.hyperql.sample.hq.bookstore.AuthorService;
-import org.slowcoders.hyperql.sample.hq.bookstore.model.Author;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;

@@ -1,8 +1,6 @@
 package org.slowcoders.hyperquery.core;
 
 import org.slowcoders.hyperquery.impl.HFilter;
-import org.slowcoders.hyperquery.impl.QCriteria;
-import org.slowcoders.hyperquery.impl.SqlBuilder;
 
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
@@ -10,10 +8,14 @@ import java.lang.annotation.RetentionPolicy;
 
 public class QFilter<T extends QEntity<?>> extends HFilter {
 
+    public enum LogicalOp {
+        AND, OR, NOT_AND, NOT_OR;
+    }
+
     @Retention(RetentionPolicy.RUNTIME)
     public @interface Predicate {
         /** condition expression to filtering */
-        String value();
+        String value() default "";
 
         boolean bypassEmptyInput() default true;
 
@@ -22,16 +24,10 @@ public class QFilter<T extends QEntity<?>> extends HFilter {
         String inputType() default "";
     }
 
-    @Retention(RetentionPolicy.RUNTIME)
-    public @interface EmbedFilter {
-        /** alias of the joined table or view */
-        String value();
-    }
-
     @Repeatable(Begin.Stack.class)
     @Retention(RetentionPolicy.RUNTIME)
     public @interface Begin {
-        QCriteria.LogicalOp value();
+        LogicalOp value();
 
         @Retention(RetentionPolicy.RUNTIME)
         @interface Stack {
@@ -42,12 +38,16 @@ public class QFilter<T extends QEntity<?>> extends HFilter {
     @Repeatable(EndOf.Stack.class)
     @Retention(RetentionPolicy.RUNTIME)
     public @interface EndOf {
-        QCriteria.LogicalOp value();
+        LogicalOp value();
 
         @Retention(RetentionPolicy.RUNTIME)
         @interface Stack {
             EndOf[] value();
         }
+    }
+
+    public interface Validator<T> {
+        boolean isValid(T value);
     }
 
 }

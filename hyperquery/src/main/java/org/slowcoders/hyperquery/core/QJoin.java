@@ -44,6 +44,10 @@ public class QJoin extends AliasNode {
         return model;
     }
 
+    public static QJoin of(Class<? extends QEntity<?>> recordType, String joinOn) {
+        return new QJoin(recordType, joinOn, false);
+    }
+
     @QFrom("")
     private static class HiddenView implements QEntity<HiddenView> {}
 }

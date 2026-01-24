@@ -58,9 +58,9 @@ public class SqlBuilder extends ViewNode {
         return rootSchema;
     }
 
-    public HQuery build() {
-        List<ColumnMapping> columnMappings = parseSelect(rootSchema, resultType, "");
-        QCriteria criteria = QCriteria.parse(this, filter, "@");
+    public HQuery buildSelect() {
+        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, resultType, "");
+        HCriteria criteria = HCriteria.parse(this, filter, "@");
 
         String where = criteria.toString();
 
@@ -250,7 +250,7 @@ public class SqlBuilder extends ViewNode {
     }
 
     static Pattern ColumnNameOnly = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*");
-    List<ColumnMapping> parseSelect(HModel view, Class<? extends QRecord<?>> recordType, String propertyPrefix) {
+    List<ColumnMapping> parseColumnMappings(HModel view, Class<?> recordType, String propertyPrefix) {
         try {
             for (Field f : recordType.getDeclaredFields()) {
                 String columnExpr = HSchema.getColumnExpr(view, f);
@@ -259,7 +259,7 @@ public class SqlBuilder extends ViewNode {
                 if (QRecord.class.isAssignableFrom(elementType)) {
                     JoinNode node = pushNamespace(columnExpr);
                     HSchema subSchema = HSchema.getSchema(elementType, false);
-                    parseSelect(subSchema, elementType, propertyPrefix + f.getName() + '.');
+                    parseColumnMappings(subSchema, elementType, propertyPrefix + f.getName() + '.');
                     setNamespace(node);
                 } else {
                     if (ColumnNameOnly.matcher(columnExpr).matches()) {
@@ -274,6 +274,89 @@ public class SqlBuilder extends ViewNode {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public String buildInsert(QUniqueRecord<?> entity, boolean updateOnConflict) {
+        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, entity.getClass(), "");
+        sbQuery.write("INSERT INTO ").write(rootSchema.getTableName()).write(" (");
+        for (ColumnMapping mapping : columnMappings) {
+            sbQuery.write(mapping.columnName).write(", ");
+        }
+        sbQuery.shrinkLength(2);
+        sbQuery.write(") VALUES (");
+        for (ColumnMapping mapping : columnMappings) {
+            sbQuery.write("#{").write(mapping.fieldName).write("}, ");
+        }
+        sbQuery.shrinkLength(2);
+        sbQuery.write(")");
+        if (updateOnConflict) {
+            sbQuery.write("ON CONFLICT (");
+            for (ColumnMapping mapping : columnMappings) {
+                if (mapping.columnName.equals("id")) {
+                    sbQuery.write(mapping.columnName).write(", ");
+                }
+            }
+            sbQuery.replaceTrailingComma(")\nDO UPDATE SET\n");
+            for (ColumnMapping mapping : columnMappings) {
+                if (mapping.columnName.equals("id")) continue;
+                sbQuery.write(mapping.columnName).write(" = #{").write(mapping.fieldName).write("}, ");
+            }
+            sbQuery.shrinkLength(2);
+        }
+
+        return sbQuery.toString();
+    }
+
+    public String buildUpdate(QUniqueRecord<?> entity, boolean updateOnConflict) {
+        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, entity.getClass(), "");
+        sbQuery.write("WITH _DATA as (\n");
+        sbQuery.incTab();
+        sbQuery.write("select ");
+        sbQuery.incTab();
+        for (ColumnMapping mapping : columnMappings) {
+            sbQuery.write("#{").write(mapping.fieldName).write("} as ").write(mapping.columnName).write(",\n");
+        }
+        sbQuery.decTab();
+        sbQuery.shrinkLength(2);
+        sbQuery.decTab();
+        sbQuery.write("\n), _OLD as (\n");
+        sbQuery.incTab();
+        sbQuery.write("select * from ").write(rootSchema.getTableName()).write(" _OLD\n");
+        sbQuery.write("JOIN _DATA\n  on ");
+        sbQuery.incTab();
+        for (ColumnMapping mapping : columnMappings) {
+            if (mapping.columnName.equals("id")) {
+                sbQuery.write("_OLD.").write(mapping.columnName).write(" = _DATA.").write(mapping.columnName).write("\n AND ");
+            }
+        }
+        sbQuery.shrinkLength(6);
+        sbQuery.decTab();
+        sbQuery.decTab();
+        sbQuery.write("\n), _NEW as (\n");
+        sbQuery.incTab();
+        sbQuery.write("UPDATE ").write(rootSchema.getTableName()).write(" t_0 SET\n");
+        sbQuery.incTab();
+        for (ColumnMapping mapping : columnMappings) {
+            if (mapping.columnName.equals("id")) continue;
+            sbQuery.write(mapping.columnName).write(" = _DATA.").write(mapping.columnName).write(",\n");
+        }
+        sbQuery.shrinkLength(2);
+        sbQuery.decTab();
+        sbQuery.write("\nFROM _DATA\n");
+        sbQuery.write("WHERE ");
+        sbQuery.incTab();
+        for (ColumnMapping mapping : columnMappings) {
+            if (mapping.columnName.equals("id")) {
+                sbQuery.write("_DATA.").write(mapping.columnName).write(" = ").write("t_0.").write(mapping.columnName).write("\n AND");
+            }
+        }
+        sbQuery.decTab();
+        sbQuery.shrinkLength(5);
+        sbQuery.write("\nRETURNING *\n");
+        sbQuery.decTab();
+        sbQuery.write(")");
+        sbQuery.write("select count(*) from _DATA");
+        return sbQuery.toString();
     }
 
 }

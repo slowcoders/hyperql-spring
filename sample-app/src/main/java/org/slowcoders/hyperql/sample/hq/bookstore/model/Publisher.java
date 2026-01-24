@@ -1,23 +1,29 @@
 package org.slowcoders.hyperql.sample.hq.bookstore.model;
 
-import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.slowcoders.hyperquery.core.QColumn;
+import org.slowcoders.hyperquery.core.QEntity;
+import org.slowcoders.hyperquery.core.QFrom;
+import org.slowcoders.hyperquery.core.QJoin;
 
-
-public class Publisher implements java.io.Serializable {
-    @Getter @Setter
-    @Id
-    @Column(name = "id", nullable = false)
+@QFrom("hql_demo.bookstore_jpa.publisher")
+public class Publisher implements QEntity<Publisher> {
+    @Getter
+    @Setter
+    @QColumn("id")
     private Long id;
 
-    @Getter @Setter
-    @Column(name = "name", nullable = false)
+    @Getter
+    @Setter
+    @QColumn("memo")
+    private com.fasterxml.jackson.databind.JsonNode memo;
+
+    @Getter
+    @Setter
+    @QColumn("name")
     private String name;
 
-    @Getter @Setter
-    @Column(name = "memo", nullable = true, columnDefinition = "jsonb")
-    @org.hibernate.annotations.Type(io.hypersistence.utils.hibernate.type.json.JsonType.class)
-    private com.fasterxml.jackson.databind.JsonNode memo;
+    public static QJoin book_ = QJoin.of(Book.class, "#.publisher_id = @.id");
 
 }

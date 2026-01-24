@@ -1,6 +1,8 @@
 package org.slowcoders.hyperquery.impl;
 
+import org.apache.ibatis.reflection.MetaObject;
 import org.slowcoders.hyperquery.core.QFilter;
+import org.slowcoders.hyperquery.util.SqlWriter;
 import org.springframework.util.ObjectUtils;
 
 import java.lang.reflect.Field;
@@ -8,30 +10,25 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Stack;
 
-public class QCriteria extends ArrayList<String> {
+public class HCriteria extends ArrayList<String> {
 
-    public enum LogicalOp {
-        AND, OR, NOT_AND, NOT_OR;
-    }
+    QFilter.LogicalOp type;
 
-    LogicalOp type;
-
-    QCriteria(LogicalOp type) {
+    HCriteria(QFilter.LogicalOp type) {
         this.type = type;
     }
 
-    static QCriteria parse(SqlBuilder generator, QFilter<?> filter, String s) {
-        QCriteria criteria = new QCriteria(QCriteria.LogicalOp.AND);
+    static HCriteria parse(SqlBuilder generator, QFilter<?> filter, String s) {
+        HCriteria criteria = new HCriteria(QFilter.LogicalOp.AND);
         if (filter == null) return criteria;
 
-        Stack<QCriteria> prStack = new Stack<>();
+        Stack<HCriteria> prStack = new Stack<>();
 
         try {
             for (Field f : filter.getClass().getDeclaredFields()) {
                 QFilter.Begin[] beginStack = f.getAnnotationsByType(QFilter.Begin.class);
                 QFilter.EndOf[] endStack = f.getAnnotationsByType(QFilter.EndOf.class);
                 QFilter.Predicate predicate = f.getAnnotation(QFilter.Predicate.class);
-                QFilter.EmbedFilter subFilter = f.getAnnotation(QFilter.EmbedFilter.class);
 
                 for (QFilter.EndOf end : endStack) {
                     if (end.value() != criteria.type) {
@@ -46,7 +43,7 @@ public class QCriteria extends ArrayList<String> {
 
                 for (QFilter.Begin begin : beginStack) {
                     prStack.push(criteria);
-                    criteria = new QCriteria(begin.value());
+                    criteria = new HCriteria(begin.value());
                 }
 
                 f.setAccessible(true);
@@ -54,27 +51,21 @@ public class QCriteria extends ArrayList<String> {
                 if (ObjectUtils.isEmpty(value)) continue;
 
                 if (predicate != null) {
-                    if (subFilter != null) {
-                        throw new IllegalStateException("Invalid @Condition + @EmbedFilter pair on " + f.getName());
-                    }
-                    String expr = PredicateTranslator.translate(generator, f.getName(), predicate.value());
-                    if (!isIterable(f)) {
-                        expr = expr.replaceAll("\\?", "#{" + f.getName() + "}");
+                    if (QFilter.class.isAssignableFrom(f.getType())) {
+                        JoinNode node = generator.pushNamespace(predicate.value());
+                        String expr = parse(generator, (QFilter<?>) value, predicate.value()).toString();
+                        generator.setNamespace(node);
+                        criteria.add(expr);
                     } else {
-                        // @Condition("(@.room_type_code, 5) in (?{?, ?.hash})")
-                        expr = parseArrayCondition(expr, f, value);
+                        String expr = PredicateTranslator.translate(generator, f.getName(), predicate.value());
+                        if (!isIterable(f)) {
+                            expr = expr.replaceAll("\\?", "#{" + f.getName() + "}");
+                        } else {
+                            // @Condition("(@.room_type_code, 5) in (?{?, ?.hash})")
+                            expr = parseArrayCondition(expr, f, value);
+                        }
+                        criteria.add(expr);
                     }
-                    criteria.add(expr);
-                }
-                else if (subFilter != null) {
-                    if (!QFilter.class.isAssignableFrom(f.getType())) {
-                        throw new IllegalStateException("Invalid @EmbedFilter on " + f.getName());
-                    }
-                    JoinNode node = generator.pushNamespace(subFilter.value());
-                    String expr = parse(generator, (QFilter<?>)value, subFilter.value()).toString();
-//                    String expr = new CriteriaBuilder(generator, (QFilter<?>)value, subFilter.value()).build().toString();
-                    generator.setNamespace(node);
-                    criteria.add(expr);
                 }
             }
         } catch (Exception e) {
@@ -131,6 +122,38 @@ public class QCriteria extends ArrayList<String> {
                 || Collection.class.isAssignableFrom(type);
     }
 
+    public static class Predicate extends HCondition {
+        private final String propertyName;
+        public Predicate(String propertyName, QFilter.Validator validator, String predication, HCondition[] conditions) {
+            super(validator, predication, conditions);
+            this.propertyName = propertyName;
+        }
+
+        protected boolean apply(MetaObject obj) {
+            return super.getApplicability().isValid(obj.getValue(propertyName));
+        }
+    }
+
+    public static class PredicateSet extends HCondition {
+        private final QFilter.LogicalOp op;
+
+        public PredicateSet(QFilter.LogicalOp op, QFilter.Validator validator, HCondition[] conditions) {
+            super(validator, null, conditions);
+            this.op = op;
+        }
+
+        @Override
+        protected void dump(MetaObject obj, SqlWriter sw) {
+            sw.write('(');
+            int start = sw.length();
+            super.dump(obj, sw);
+            if (sw.length() == start) {
+                sw.shrinkLength(1);
+            } else {
+                sw.write(')');
+            }
+        }
+    }
 
     public String toString() {
         if (this.isEmpty()) return "true";

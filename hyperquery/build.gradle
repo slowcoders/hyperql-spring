@@ -37,7 +37,8 @@ dependencies {
 //    testImplementation 'org.springframework.boot:spring-boot-starter-data-jdbc-test'
 //    testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
 //    testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:4.0.0'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+//    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     antlr "org.antlr:antlr4:4.13.1" // g4 파일을 java 코드로 변환
     implementation "org.antlr:antlr4-runtime:4.13.1" // 실행할 때 사용

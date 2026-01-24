@@ -33,7 +33,10 @@ mybatis:
 
 
 springdoc:
-  swagger-ui.tagsSorter: alpha
+  swagger-ui:
+    tagsSorter: alpha
+    syntax-highlight:
+      activated: false
 
 spring:
   datasource:

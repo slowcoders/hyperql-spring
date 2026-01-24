@@ -38,7 +38,7 @@ public class QStore<T> implements ViewResolver {
 
     public <E extends QEntity<E>, R extends QRecord<E>> List<R> selectList(HModel view, Class<R> resultType, QFilter<E> filter) {
         SqlBuilder gen = new SqlBuilder(view, resultType, filter, this);
-        HQuery query = gen.build();
+        HQuery query = gen.buildSelect();
 
         String id = registerMapper(query.with, resultType);
 
@@ -46,6 +46,7 @@ public class QStore<T> implements ViewResolver {
         HFilter._session.set(getCurrentSessionInfo());
 
         try {
+            String sql = query.toString();
             Object res = sqlSessionTemplate.selectList(id, filter);
             return (List) res;
         } catch (RuntimeException e) {

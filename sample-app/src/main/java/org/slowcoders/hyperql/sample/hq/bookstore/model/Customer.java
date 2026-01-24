@@ -1,54 +1,45 @@
 package org.slowcoders.hyperql.sample.hq.bookstore.model;
 
-import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.slowcoders.hyperquery.core.QColumn;
 import org.slowcoders.hyperquery.core.QEntity;
 import org.slowcoders.hyperquery.core.QFrom;
+import org.slowcoders.hyperquery.core.QJoin;
 
-import java.util.Set;
-
-
-@QFrom("bookstore.customer")
+@QFrom("hql_demo.bookstore_jpa.customer")
 public class Customer implements QEntity<Customer> {
     @Getter
     @Setter
-    @Id
-    @Column(name = "id", nullable = false)
+    @QColumn("id")
     private Long id;
 
-    @Getter @Setter
-    @Column(name = "name", nullable = false)
-    private String name;
-
-    @Getter @Setter
-    @Column(name = "height", nullable = true)
+    @Getter
+    @Setter
+    @QColumn("height")
     private Float height;
 
-    @Getter @Setter
-    @Column(name = "mass", nullable = true)
+    @Getter
+    @Setter
+    @QColumn("mass")
     private Float mass;
 
-//    @Getter @Setter
-//    @Column(name = "memo", nullable = true, columnDefinition = "jsonb")
-//    @org.hibernate.annotations.Type(io.hypersistence.utils.hibernate.type.json.JsonType.class)
-//    private com.fasterxml.jackson.databind.JsonNode memo;
+    @Getter
+    @Setter
+    @QColumn("memo")
+    private com.fasterxml.jackson.databind.JsonNode memo;
 
-    @Getter @Setter
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(name = "customer_friend_link", schema = "bookstore_jpa", catalog = "bookstore_jpa",
-            uniqueConstraints = {
-                    @UniqueConstraint(name ="customer_id__friend_id__uindex", columnNames = {"customer_id", "friend_id"})
-            },
-            joinColumns = @JoinColumn(name="customer_id"), inverseJoinColumns = @JoinColumn(name="friend_id"))
-    private Set<Customer> friend_;
+    @Getter
+    @Setter
+    @QColumn("name")
+    private String name;
 
-    @Getter @Setter
-    @ManyToMany(fetch=FetchType.LAZY)
-    @JoinTable(name = "book_order", schema = "bookstore_jpa", catalog = "bookstore_jpa", 
-        uniqueConstraints = {
-                @UniqueConstraint(name = "customer_id__book_id__uindex", columnNames ={"customer_id", "book_id"})
-        },
-        joinColumns = @JoinColumn(name = "customer_id"), inverseJoinColumns = @JoinColumn(name = "book_id"))
-    private Set<Book>book_;
+    public static QJoin bookOrder_ = QJoin.of(BookOrder.class, "#.customer_id = @.id");
+
+    public static QJoin customerFriendLink_ = QJoin.of(CustomerFriendLink.class, "#.customer_id = @.id");
+
+    public static QJoin friend_ = QJoin.of(Customer.class, "#.customer_id = @.id");
+
+    public static QJoin book_ = QJoin.of(Book.class, "#.customer_id = @.id");
+
 }
