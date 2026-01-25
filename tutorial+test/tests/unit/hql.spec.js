@@ -14,7 +14,7 @@ describe('Hyper Query operations', () => {
     test('Insert Book', async () => {
         const url = `${baseUrl}/books/`
         const response = await axios.post(url, {
-            id: 3003,
+            id: 3103,
             title: "Test book",
             price: 10000,
             authorId: 2,

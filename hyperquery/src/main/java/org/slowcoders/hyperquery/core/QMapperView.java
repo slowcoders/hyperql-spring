@@ -3,16 +3,16 @@ package org.slowcoders.hyperquery.core;
 import org.slowcoders.hyperquery.impl.HModel;
 import org.slowcoders.hyperquery.impl.HSchema;
 import org.slowcoders.hyperquery.impl.ViewResolver;
-import org.w3c.dom.Node;
 
 import java.util.Map;
 
 public class QMapperView<R extends QRecord<?>> extends HModel {
 
-    private final HSchema schema;
-
     private final String namespace;
     private final String sqlId;
+    private final Class<R> recordType;
+    private HSchema schema;
+
     private final Map<String, String> properties;
     private Object query;
 
@@ -31,12 +31,15 @@ public class QMapperView<R extends QRecord<?>> extends HModel {
     public QMapperView(Class<R> recordType, String namespace, String sqlId, Map<String, String> properties) {
         this.namespace = namespace;
         this.sqlId = sqlId;
-        this.schema = HSchema.registerSchema(recordType, false);
+        this.recordType = recordType;
         this.properties = properties;
     }
 
     @Override
     protected HSchema loadSchema() {
+        if (schema == null) {
+            schema = HSchema.loadSchema(recordType, false);
+        }
         return schema;
     }
 

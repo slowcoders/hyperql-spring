@@ -25,7 +25,12 @@ public class HSchema extends HModel {
 
     private static final HashMap<Class<?>, HSchema> relations = new HashMap<>();
 
-    private HSchema(Class<? extends QRecord<?>> entityType, boolean isEntity) {
+    private static class EmptyEntity implements QEntity<EmptyEntity> {}
+    static {
+        relations.put(QEntity.class, new HSchema(EmptyEntity.class, false));
+    }
+
+    protected HSchema(Class<? extends QRecord<?>> entityType, boolean isEntity) {
         this.entityType = entityType;
         QFrom from = entityType.getAnnotation(QFrom.class);
         if (from != null) {
@@ -36,6 +41,8 @@ public class HSchema extends HModel {
             this.tableName = "";
         }
     }
+
+
     public final Class<? extends QRecord<?>> getEntityType() { return entityType; }
 
     public QAttribute getAttribute(String property) {
@@ -46,19 +53,19 @@ public class HSchema extends HModel {
     public QLambda getLambda(String alias) {
         return lambdas.get(alias);
     }
-    public static HSchema registerSchema(Class<? extends QRecord<?>> clazz, boolean isEntity) {
-        HSchema relation = relations.get(clazz);
-        if (relation == null) {
-            synchronized (relations) {
-                relation = relations.get(clazz);
-                if (relation == null) {
-                    relation = new HSchema(clazz, isEntity);
-                    relations.put(clazz, relation);
-                }
-            }
-        }
-        return relation;
-    }
+//    public static HSchema loadSchema(Class<? extends QRecord<?>> clazz, boolean isEntity) {
+//        HSchema relation = relations.get(clazz);
+//        if (relation == null) {
+//            synchronized (relations) {
+//                relation = relations.get(clazz);
+//                if (relation == null) {
+//                    relation = new HSchema(clazz, isEntity);
+//                    relations.put(clazz, relation);
+//                }
+//            }
+//        }
+//        return relation;
+//    }
 
     public synchronized void initialize() {
         if (joins != null) return;
@@ -98,40 +105,43 @@ public class HSchema extends HModel {
         this.attributes = attributes;
     }
 
-    static HSchema getSchema(Class<?> clazz, boolean isEntity) {
-        HSchema schema = relations.get(clazz);
-        if (schema != null) return schema;
+    public static HSchema loadSchema(Class<?> clazz, boolean isEntity) {
+        synchronized (relations) {
+            HSchema schema = relations.get(clazz);
+            if (schema != null) return schema;
 
-        Class<?> genericClass = clazz;
-        while (!QEntity.class.isAssignableFrom(genericClass)) {
-            if (QFilter.class.isAssignableFrom(genericClass)) {
-                Type type = genericClass.getGenericSuperclass();
-                if (type instanceof ParameterizedType) {
-                    genericClass = (Class<?>) ((ParameterizedType) type).getActualTypeArguments()[0];
-                } else {
-                    type = type.getClass();
+            Class<?> genericClass = clazz;
+            while (!QEntity.class.isAssignableFrom(genericClass)) {
+                if (QFilter.class.isAssignableFrom(genericClass)) {
+                    Type type = genericClass.getGenericSuperclass();
+                    if (type instanceof ParameterizedType) {
+                        genericClass = (Class<?>) ((ParameterizedType) type).getActualTypeArguments()[0];
+                    } else {
+                        type = type.getClass();
+                    }
+                    continue;
                 }
-                continue;
-            }
 
-            Type[] interfaces = genericClass.getGenericInterfaces();
-            genericClass = null;
-            for (Type iface : interfaces) {
-                if (iface instanceof ParameterizedType) {
-                    Type[] params = ((ParameterizedType) iface).getActualTypeArguments();
-                    if (QRecord.class.isAssignableFrom((Class<?>)params[0])) {
-                        genericClass = (Class<?>) params[0];
-                        break;
+                Type[] interfaces = genericClass.getGenericInterfaces();
+                genericClass = null;
+                for (Type iface : interfaces) {
+                    if (iface instanceof ParameterizedType) {
+                        Type[] params = ((ParameterizedType) iface).getActualTypeArguments();
+                        if (QRecord.class.isAssignableFrom((Class<?>) params[0])) {
+                            genericClass = (Class<?>) params[0];
+                            break;
+                        }
                     }
                 }
+                if (genericClass == null) {
+                    throw new IllegalArgumentException(clazz.getName() + " is not valid a model(QEntity, QRecord or QFilter)");
+                }
             }
-            if (genericClass == null) {
-                throw new IllegalArgumentException(clazz.getName() + " is not valid a model(QEntity, QRecord or QFilter)");
-            }
+
+            schema = new HSchema((Class<? extends QEntity<?>>) genericClass, isEntity);
+            relations.put(genericClass, schema);
+            return schema;
         }
-        schema = HSchema.registerSchema((Class<? extends QEntity<?>>) genericClass, isEntity);
-        relations.put(genericClass, schema);
-        return schema;
     }
 
 

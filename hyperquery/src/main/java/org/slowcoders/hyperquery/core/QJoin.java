@@ -39,7 +39,7 @@ public class QJoin extends AliasNode {
 
     public HModel getTargetRelation() {
         if (model == null) {
-            model = HSchema.registerSchema(viewType, false);
+            model = HSchema.loadSchema(viewType, false);
         }
         return model;
     }

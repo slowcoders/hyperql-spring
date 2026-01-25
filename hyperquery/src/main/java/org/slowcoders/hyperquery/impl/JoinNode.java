@@ -19,7 +19,7 @@ class ViewNode {
 }
 
 class JoinNode {
-    final HModel model;
+    private final HModel model;
     final String aliasQualifier;
     final ArrayList<ViewNode> views = new ArrayList<>();
     String joinCriteria;
@@ -28,6 +28,10 @@ class JoinNode {
     JoinNode(HModel model, String aliasQualifier) {
         this.model = model;
         this.aliasQualifier = aliasQualifier;
+    }
+
+    final HModel getModel() {
+        return model;
     }
 
     final boolean addUsedAttribute(String alias, String expr) {

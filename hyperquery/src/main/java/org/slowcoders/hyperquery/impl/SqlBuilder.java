@@ -95,7 +95,7 @@ public class SqlBuilder extends ViewNode {
         String aliasQualifier = currNode.aliasQualifier + alias.replaceAll("@", "\\$");
         JoinNode node = currView.getJoin(aliasQualifier);
         if (node == null) {
-            QJoin join = currNode.model.getJoin(alias);
+            QJoin join = currNode.getModel().getJoin(alias);
             node = new JoinNode(join.getTargetRelation(), aliasQualifier);
             currView.addJoin(aliasQualifier, node);
             int orgLevel = node.setAttrLevel(0);
@@ -112,7 +112,7 @@ public class SqlBuilder extends ViewNode {
     }
 
     public HModel getCurrentModel() {
-        return currNode.model;
+        return currNode.getModel();
     }
 
     private interface IdentifierHandler<T> {
@@ -155,17 +155,17 @@ public class SqlBuilder extends ViewNode {
         }
 
         JoinNode baseNode = currNode;
-        HModel model = baseNode.model;
+        HModel model = baseNode.getModel();
         if (p > 1) {
             path = path.substring(0, p);
             int left = 1;
             int right;
             for (; (right = path.indexOf('@', left)) > 0; left = right + 1) {
                 String alias = path.substring(left - 1, right);
-                model = pushNamespace(alias).model;
+                model = pushNamespace(alias).getModel();
             }
             String alias = path.substring(left - 1);
-            model = pushNamespace(alias).model;
+            model = pushNamespace(alias).getModel();
         }
         T res = handler.handleIdentifier(model, name);
         this.currNode = baseNode;
@@ -195,11 +195,11 @@ public class SqlBuilder extends ViewNode {
     }
 
     private String genTableView(String alias, JoinNode node) {
-        String tableName = node.model.getTableName();
+        String tableName = node.getModel().getTableName();
         if (tableName.isEmpty()) {
             sbWith.write(alias).write(" AS (\n");
             sbWith.incTab();
-            Object expr = node.model.getTableExpression(viewResolver);
+            Object expr = node.getModel().getTableExpression(viewResolver);
             if (expr instanceof Node) {
                 if (sbWith.length() > 0) {
                     addTextNode(sbWith.reset());
@@ -251,7 +251,7 @@ public class SqlBuilder extends ViewNode {
                 Class<? extends QRecord<?>> elementType = HSchema.Helper.getElementType(f);
                 if (QRecord.class.isAssignableFrom(elementType)) {
                     JoinNode node = pushNamespace(columnExpr);
-                    HSchema subSchema = HSchema.getSchema(elementType, false);
+                    HSchema subSchema = HSchema.loadSchema(elementType, false);
                     parseColumnMappings(subSchema, elementType, propertyPrefix + f.getName() + '.');
                     setNamespace(node);
                 } else {

@@ -37,7 +37,7 @@ public class QStore<T> implements ViewResolver {
 
 
     public <E extends QEntity<E>, R extends QRecord<E>> List<R> selectList(HModel view, Class<R> resultType, QFilter<E> filter) {
-        if (filter != null && HSchema.getSchema(filter.getClass(), false) != view.loadSchema()) {
+        if (filter != null && HSchema.loadSchema(filter.getClass(), false) != view.loadSchema()) {
             throw new IllegalArgumentException("Filter type is not related to result type.");
         }
 
@@ -60,11 +60,11 @@ public class QStore<T> implements ViewResolver {
     }
 
     public <E extends QEntity<E>, R extends QRecord<E>> List<R> selectList(Class<R> resultType, QFilter<E> filter) {
-        return selectList(HSchema.getSchema(resultType, false), resultType, filter);
+        return selectList(HSchema.loadSchema(resultType, false), resultType, filter);
     }
 
     public <E extends QEntity<E>> int insert(QEntity<E> entity, boolean updateOnConflict) {
-        HSchema schema = HSchema.getSchema(entity.getClass(), false);
+        HSchema schema = HSchema.loadSchema(entity.getClass(), false);
         SqlBuilder gen = new SqlBuilder(schema, this);
         String query = gen.buildInsert(entity, updateOnConflict);
 
@@ -83,7 +83,7 @@ public class QStore<T> implements ViewResolver {
     }
 
     public <E extends QEntity<E>> int update(QUniqueRecord<E> entity) {
-        HSchema schema = HSchema.getSchema(entity.getClass(), false);
+        HSchema schema = HSchema.loadSchema(entity.getClass(), false);
         SqlBuilder gen = new SqlBuilder(schema, this);
         String query = gen.buildUpdate(entity);
 
