@@ -11,6 +11,40 @@ describe('Hyper Query operations', () => {
     beforeAll(async () => {
     })
 
+    test('Insert Book', async () => {
+        const url = `${baseUrl}/books/`
+        const response = await axios.post(url, {
+            id: 3003,
+            title: "Test book",
+            price: 10000,
+            authorId: 2,
+            publisherId: 5001
+        });
+        console.log(response.data);
+    });
+
+    test('Update Book', async () => {
+        const url = `${baseUrl}/books/`
+        const response = await axios.put(url, {
+            id: 3003,
+            title: "Test book",
+            price: 30000,
+            authorId: 2,
+            publisherId: 5001
+        });
+        console.log(response.data);
+    });
+
+    test('Patch Book', async () => {
+        const url = `${baseUrl}/books/updateSalesPricePercent`
+        const response = await axios.patch(url, {
+            id: 3003,
+            percent: 70
+        });
+        console.log(response.data);
+    });
+
+
     test('Collection property mapping', async () => {
         const filter = {
             "name": '강'

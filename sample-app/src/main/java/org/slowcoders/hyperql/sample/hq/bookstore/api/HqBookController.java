@@ -8,10 +8,7 @@ import org.slowcoders.hyperql.sample.hq.bookstore.model.Book;
 import org.slowcoders.hyperql.sample.hq.bookstore.model.BookSales;
 import org.slowcoders.hyperquery.core.QFilter;
 import org.slowcoders.hyperquery.core.QMapperView;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -29,9 +26,25 @@ public class HqBookController {
     }
 
     @GetMapping("/")
-    public List<Book> search(BookFilter filter) {
+    public List<Book> search(@RequestBody BookFilter filter) {
         return service.selectList(Book.class, filter);
     }
+
+    @PostMapping("/")
+    public int insert(@RequestBody Book book) {
+        return service.insert(book, true);
+    }
+
+    @PutMapping("/")
+    public int update(@RequestBody Book book) {
+        return service.update(book);
+    }
+
+    @PatchMapping("/updateSalesPricePercent")
+    public int updateSalesPricePercent(@RequestBody SalesPricePercent salesPricePercent) {
+        return service.update(salesPricePercent);
+    }
+
 
     @GetMapping("/{id}")
     public List<BookDto> get(@PathVariable("id") int id) {

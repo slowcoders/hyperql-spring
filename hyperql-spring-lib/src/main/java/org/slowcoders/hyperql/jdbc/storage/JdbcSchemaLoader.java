@@ -297,17 +297,6 @@ public abstract class JdbcSchemaLoader {
         return s;
     }
 
-    private static String unquoteToken(String s) {
-        if (s != null && s.length() > 0) {
-            if (s.charAt(0) == '"') {
-                assert (s.charAt(s.length() - 1) == '"');
-                s = s.substring(1, s.length() - 1);
-            }
-            assert (s.charAt(0) != '"');
-            assert (s.charAt(s.length() - 1) != '"');
-        }
-        return s;
-    }
 
     private static String combineDBNameTokens(String db_catalog, String db_schema, String table_name) {
         StringBuilder sb = new StringBuilder();
@@ -379,6 +368,18 @@ public abstract class JdbcSchemaLoader {
 
         public String getSchema() {
             return schema;
+        }
+
+        private static String unquoteToken(String s) {
+            if (s != null && s.length() > 0) {
+                if (s.charAt(0) == '"') {
+                    assert (s.charAt(s.length() - 1) == '"');
+                    s = s.substring(1, s.length() - 1);
+                }
+                assert (s.charAt(0) != '"');
+                assert (s.charAt(s.length() - 1) != '"');
+            }
+            return s;
         }
     }
 }

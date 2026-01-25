@@ -12,9 +12,9 @@ import java.util.regex.Pattern;
 
 public class SqlBuilder extends ViewNode {
     private final HModel rootSchema;
-    private final List<ColumnMapping> columnMappings = new ArrayList<>();
-    private final Class<? extends QRecord<?>> resultType;
-    private final QFilter<?> filter;
+//    private final List<ColumnMapping> columnMappings = new ArrayList<>();
+//    private final Class<? extends QRecord<?>> resultType;
+//    private final QFilter<?> filter;
 
     private final ViewResolver viewResolver;
 
@@ -40,15 +40,10 @@ public class SqlBuilder extends ViewNode {
 
             """;
 
-    public <R extends QRecord<E>, E extends QEntity<E>> SqlBuilder(HModel schema, Class<R> resultType, QFilter<E> filter, ViewResolver viewResolver ) {
+    public SqlBuilder(HModel schema, ViewResolver viewResolver ) {
         this.rootSchema = schema;
-        this.resultType = resultType;
-        this.filter = filter;
         this.viewResolver = viewResolver;
         this.currNode = new JoinNode(rootSchema, "t_0");
-        if (filter != null && HSchema.getSchema(filter.getClass(), false) != this.rootSchema.loadSchema()) {
-            throw new IllegalArgumentException("Filter type is not related to result type.");
-        }
         this.xpathParser = new XPathParser(emptyXml);
         this.rootSqlNode = xpathParser.evalNode("/sql");
         this.rootNode = rootSqlNode.getNode();
@@ -58,14 +53,15 @@ public class SqlBuilder extends ViewNode {
         return rootSchema;
     }
 
-    public HQuery buildSelect() {
+    public <R extends QRecord<E>, E extends QEntity<E>> HQuery buildSelect(Class<R> resultType, QFilter<E> filter) {
+
         List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, resultType, "");
         HCriteria criteria = HCriteria.parse(this, filter, "@");
 
         String where = criteria.toString();
 
         genTableView("t_0", currNode);
-        genSelections();
+        genSelections(columnMappings);
         String baseTable = currNode.views.isEmpty() ? rootSchema.getTableName() : "";
         sbQuery.write("from ").write(baseTable).write(" t_0").write('\n');
         genJoin(currView.joins);
@@ -94,10 +90,6 @@ public class SqlBuilder extends ViewNode {
         rootNode.appendChild(text);
     }
 
-
-    void addColumnMapping(String columnExpr, String fieldName) {
-        this.columnMappings.add(new ColumnMapping(columnExpr, fieldName));
-    }
 
     JoinNode pushNamespace(String alias) {
         String aliasQualifier = currNode.aliasQualifier + alias.replaceAll("@", "\\$");
@@ -180,11 +172,11 @@ public class SqlBuilder extends ViewNode {
         return res;
     }
 
-    private void genSelections() {
+    private void genSelections(List<ColumnMapping> columnMappings) {
         sbQuery.write("SELECT ");
         sbQuery.incTab();
         for (ColumnMapping col : columnMappings) {
-            sbQuery.write(col.columnName).write(" as \"").write(col.fieldName).write("\",\n");
+            sbQuery.write(col.qualifiedColumnName).write(" as \"").write(col.fieldName).write("\",\n");
         }
         sbQuery.shrinkLength(2);
         sbQuery.decTab();
@@ -252,6 +244,7 @@ public class SqlBuilder extends ViewNode {
     static Pattern ColumnNameOnly = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*");
     List<ColumnMapping> parseColumnMappings(HModel view, Class<?> recordType, String propertyPrefix) {
         try {
+            List<ColumnMapping> columnMappings = new ArrayList<>();
             for (Field f : recordType.getDeclaredFields()) {
                 String columnExpr = HSchema.getColumnExpr(view, f);
                 if (columnExpr == null) continue;
@@ -267,10 +260,10 @@ public class SqlBuilder extends ViewNode {
                     } else {
                         columnExpr = PredicateTranslator.translate(this, f.getName(), columnExpr);
                     }
-                    addColumnMapping(columnExpr, propertyPrefix + f.getName());
+                    columnMappings.add(new ColumnMapping(columnExpr, propertyPrefix, f));
                 }
             }
-            return this.columnMappings;
+            return columnMappings;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -307,7 +300,7 @@ public class SqlBuilder extends ViewNode {
         return sbQuery.toString();
     }
 
-    public String buildUpdate(QUniqueRecord<?> entity, boolean updateOnConflict) {
+    public String buildUpdate(QUniqueRecord<?> entity) {
         List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, entity.getClass(), "");
         sbQuery.write("WITH _DATA as (\n");
         sbQuery.incTab();
@@ -338,7 +331,9 @@ public class SqlBuilder extends ViewNode {
         sbQuery.incTab();
         for (ColumnMapping mapping : columnMappings) {
             if (mapping.columnName.equals("id")) continue;
-            sbQuery.write(mapping.columnName).write(" = _DATA.").write(mapping.columnName).write(",\n");
+            String value = mapping.columnConfig.inputTransform().replaceAll("\\?", "_DATA." + mapping.columnName);
+            value = value.replaceAll("@", "t_0");
+            sbQuery.write(mapping.columnName).write(" = ").write(value).write(",\n");
         }
         sbQuery.shrinkLength(2);
         sbQuery.decTab();

@@ -57,4 +57,10 @@ public interface QRecord<T extends QEntity<T>> {
             return new Lambda(0, null);
         }
     }
+
+    static final ThreadLocal<String> _sql = new ThreadLocal<>();
+    static final ThreadLocal<Object> _session = new ThreadLocal<>();
+    default String get__sql__() { return _sql.get(); }
+    default Object get__session__() { return _session.get(); }
+
 }

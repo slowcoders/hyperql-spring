@@ -7,7 +7,7 @@ import org.slowcoders.hyperquery.core.QEntity;
 import org.slowcoders.hyperquery.core.QFrom;
 import org.slowcoders.hyperquery.core.QJoin;
 
-@QFrom("hql_demo.bookstore_jpa.author")
+@QFrom("hql_demo.bookstore.author")
 public class Author implements QEntity<Author> {
     @Getter
     @Setter

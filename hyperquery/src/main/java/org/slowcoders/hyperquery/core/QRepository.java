@@ -10,6 +10,9 @@ public interface QRepository {
     @Select("${__sql__}")
     Object __select__(@Param("_parameter") Object params, @Param("__sql__") Object __sql__);
 
+    @Update("${__sql__}")
+    Object __insert__(QEntity<?> entity);
+
     @Update("""
         WITH _DATA AS (
             ${__input_data__}
@@ -22,7 +25,7 @@ public interface QRepository {
             RETURNING *
         )
     """)
-    Object __insert__(QEntity<?> entity);
+    Object __insert__2(QEntity<?> entity);
 
     @Update("""
         WITH _DATA AS (
@@ -56,6 +59,9 @@ public interface QRepository {
     """)
     QRecord<?> __updateAll__(QRecord<?> record, QFilter<?> filter);
 
+    @Update("${__sql__}")
+    QRecord<?> __update__(QUniqueRecord<?> record);
+
     @Update("""
         WITH _DATA AS (
             ${__input_data__}
@@ -70,6 +76,5 @@ public interface QRepository {
             RETURNING *
         )
     """)
-    QRecord<?> __update__(QUniqueRecord<?> record);
-
+    QRecord<?> __update__2(QUniqueRecord<?> record);
 }

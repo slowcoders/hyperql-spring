@@ -7,6 +7,11 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -163,6 +168,50 @@ public class HSchema extends HModel {
             if (attr != null) return attr.getEncodedExpr();
         }
         return null;
+    }
+
+    public static class TablePath {
+        private final String catalog;
+        private final String schema;
+        private final String simpleName;
+
+        TablePath(String catalog, String schema, String simpleName) {
+            this.catalog = (catalog);
+            this.schema = (schema);
+            this.simpleName = (simpleName);
+        }
+
+
+        public String getSimpleName() {
+            return simpleName;
+        }
+
+        public String getCatalog() {
+            return catalog;
+        }
+
+        public String getSchema() {
+            return schema;
+        }
+    }
+    private ArrayList<String> getPrimaryKeys(Connection conn, TablePath tablePath) throws SQLException {
+        DatabaseMetaData md = conn.getMetaData();
+        ResultSet rs = md.getPrimaryKeys(tablePath.getCatalog(), tablePath.getSchema(), tablePath.getSimpleName());
+        ArrayList<String> keys = new ArrayList<>();
+        int next_key_seq = 1;
+        while (rs.next()) {
+            String key = rs.getString("column_name");
+            if (false) {
+                // postgresql 에서만 동작.
+                int seq = rs.getInt("key_seq");
+                if (seq != next_key_seq) {
+                    throw new RuntimeException("something wrong");
+                }
+                next_key_seq++;
+            }
+            keys.add(key);
+        }
+        return keys;
     }
 
     static class Helper implements QEntity<Helper> {

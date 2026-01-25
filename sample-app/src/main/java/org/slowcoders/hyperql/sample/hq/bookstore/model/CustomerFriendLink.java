@@ -7,7 +7,7 @@ import org.slowcoders.hyperquery.core.QEntity;
 import org.slowcoders.hyperquery.core.QFrom;
 import org.slowcoders.hyperquery.core.QJoin;
 
-@QFrom("hql_demo.bookstore_jpa.customer_friend_link")
+@QFrom("hql_demo.bookstore.customer_friend_link")
 public class CustomerFriendLink implements QEntity<CustomerFriendLink> {
     @Getter
     @Setter

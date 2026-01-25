@@ -37,8 +37,12 @@ public class QStore<T> implements ViewResolver {
 
 
     public <E extends QEntity<E>, R extends QRecord<E>> List<R> selectList(HModel view, Class<R> resultType, QFilter<E> filter) {
-        SqlBuilder gen = new SqlBuilder(view, resultType, filter, this);
-        HQuery query = gen.buildSelect();
+        if (filter != null && HSchema.getSchema(filter.getClass(), false) != view.loadSchema()) {
+            throw new IllegalArgumentException("Filter type is not related to result type.");
+        }
+
+        SqlBuilder gen = new SqlBuilder(view, this);
+        HQuery query = gen.buildSelect(resultType, filter);
 
         String id = registerMapper(query.with, resultType);
 
@@ -58,6 +62,45 @@ public class QStore<T> implements ViewResolver {
     public <E extends QEntity<E>, R extends QRecord<E>> List<R> selectList(Class<R> resultType, QFilter<E> filter) {
         return selectList(HSchema.getSchema(resultType, false), resultType, filter);
     }
+
+    public <E extends QEntity<E>> int insert(QEntity<E> entity, boolean updateOnConflict) {
+        HSchema schema = HSchema.getSchema(entity.getClass(), false);
+        SqlBuilder gen = new SqlBuilder(schema, this);
+        String query = gen.buildInsert(entity, updateOnConflict);
+
+        String id = repositoryType.getName() + ".__insert__";
+
+        QRecord._sql.set(query);
+        QRecord._session.set(getCurrentSessionInfo());
+
+        try {
+            int res = sqlSessionTemplate.insert(id, entity);
+            return res;
+        } catch (RuntimeException e) {
+            System.out.println("Execution failed\n" + query.toString());
+            throw e;
+        }
+    }
+
+    public <E extends QEntity<E>> int update(QUniqueRecord<E> entity) {
+        HSchema schema = HSchema.getSchema(entity.getClass(), false);
+        SqlBuilder gen = new SqlBuilder(schema, this);
+        String query = gen.buildUpdate(entity);
+
+        String id = repositoryType.getName() + ".__update__";
+
+        QRecord._sql.set(query);
+        QRecord._session.set(getCurrentSessionInfo());
+
+        try {
+            int res = sqlSessionTemplate.insert(id, entity);
+            return res;
+        } catch (RuntimeException e) {
+            System.out.println("Execution failed\n" + query.toString());
+            throw e;
+        }
+    }
+
 
     public Object getCurrentSessionInfo() {
         return null;
