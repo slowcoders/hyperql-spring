@@ -20,11 +20,11 @@ public class BookDto implements QRecord<Book> {
 
     private String title;
 
-    @QColumn("@author_.name")
+    @QColumn("@author.name")
     private String author;
 
-    @QColumn("@weeklySales")
-    private List<HqBookController.BookSalesFilter> weeklySales;
+//    @QColumn("@weeklySales")
+//    private List<HqBookController.BookSalesFilter> weeklySales;
 
     @Getter @Setter
     public static class Filter extends QFilter<Book> {

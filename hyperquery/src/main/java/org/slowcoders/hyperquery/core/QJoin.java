@@ -4,6 +4,8 @@ import org.slowcoders.hyperquery.impl.AliasNode;
 import org.slowcoders.hyperquery.impl.HModel;
 import org.slowcoders.hyperquery.impl.HSchema;
 
+import java.sql.Connection;
+
 public class QJoin extends AliasNode {
 
     public enum JoinType {
@@ -37,9 +39,9 @@ public class QJoin extends AliasNode {
     }
     public boolean isToUnique() { return toUnique; }
 
-    public HModel getTargetRelation() {
+    public HModel getTargetRelation(Connection dbConn) {
         if (model == null) {
-            model = HSchema.loadSchema(viewType, false);
+            model = HSchema.loadSchema(viewType, false, dbConn);
         }
         return model;
     }

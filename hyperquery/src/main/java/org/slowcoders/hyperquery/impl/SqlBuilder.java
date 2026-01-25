@@ -11,13 +11,8 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 public class SqlBuilder extends ViewNode {
-    private final HModel rootSchema;
-//    private final List<ColumnMapping> columnMappings = new ArrayList<>();
-//    private final Class<? extends QRecord<?>> resultType;
-//    private final QFilter<?> filter;
-
+    private final HSchema rootSchema;
     private final ViewResolver viewResolver;
-
     private ViewNode currView = this;
     private JoinNode currNode;
 
@@ -40,7 +35,7 @@ public class SqlBuilder extends ViewNode {
 
             """;
 
-    public SqlBuilder(HModel schema, ViewResolver viewResolver ) {
+    public SqlBuilder(HSchema schema, ViewResolver viewResolver ) {
         this.rootSchema = schema;
         this.viewResolver = viewResolver;
         this.currNode = new JoinNode(rootSchema, "t_0");
@@ -95,8 +90,8 @@ public class SqlBuilder extends ViewNode {
         String aliasQualifier = currNode.aliasQualifier + alias.replaceAll("@", "\\$");
         JoinNode node = currView.getJoin(aliasQualifier);
         if (node == null) {
-            QJoin join = currNode.getModel().getJoin(alias);
-            node = new JoinNode(join.getTargetRelation(), aliasQualifier);
+            QJoin join = viewResolver.getJoin(currNode.getModel(), alias);
+            node = new JoinNode(viewResolver.getTargetSchema(join), aliasQualifier);
             currView.addJoin(aliasQualifier, node);
             int orgLevel = node.setAttrLevel(0);
             node.joinCriteria = PredicateTranslator.translate(this, alias, join.getJoinCriteria());
@@ -242,16 +237,16 @@ public class SqlBuilder extends ViewNode {
     }
 
     static Pattern ColumnNameOnly = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*");
-    List<ColumnMapping> parseColumnMappings(HModel view, Class<?> recordType, String propertyPrefix) {
+    List<ColumnMapping> parseColumnMappings(HSchema view, Class<?> recordType, String propertyPrefix) {
         try {
             List<ColumnMapping> columnMappings = new ArrayList<>();
             for (Field f : recordType.getDeclaredFields()) {
-                String columnExpr = HSchema.getColumnExpr(view, f);
+                String columnExpr = view.getColumnExpr(f);
                 if (columnExpr == null) continue;
                 Class<? extends QRecord<?>> elementType = HSchema.Helper.getElementType(f);
                 if (QRecord.class.isAssignableFrom(elementType)) {
                     JoinNode node = pushNamespace(columnExpr);
-                    HSchema subSchema = HSchema.loadSchema(elementType, false);
+                    HSchema subSchema = viewResolver.loadSchema(elementType, false);
                     parseColumnMappings(subSchema, elementType, propertyPrefix + f.getName() + '.');
                     setNamespace(node);
                 } else {

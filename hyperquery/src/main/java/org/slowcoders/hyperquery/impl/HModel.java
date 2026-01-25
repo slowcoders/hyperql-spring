@@ -2,12 +2,14 @@ package org.slowcoders.hyperquery.impl;
 
 import org.slowcoders.hyperquery.core.*;
 
+import java.sql.Connection;
+
 public abstract class HModel {
 
     public void initialize() {
     }
 
-    protected abstract HSchema loadSchema();
+    protected abstract HSchema loadSchema(Connection dbConn);
 
     protected abstract String getTableName();
 
@@ -17,7 +19,7 @@ public abstract class HModel {
         return null;
     }
 
-    protected QJoin getJoin(String alias) {
+    protected QJoin getJoin(String alias, Connection dbConn) {
         return null;
     }
 

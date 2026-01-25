@@ -105,41 +105,46 @@ public class HSchema extends HModel {
         this.attributes = attributes;
     }
 
-    public static HSchema loadSchema(Class<?> clazz, boolean isEntity) {
+    public static HSchema loadSchema(Class<?> clazz, boolean isEntity, Connection dbConn) {
         synchronized (relations) {
             HSchema schema = relations.get(clazz);
             if (schema != null) return schema;
+        }
 
-            Class<?> genericClass = clazz;
-            while (!QEntity.class.isAssignableFrom(genericClass)) {
-                if (QFilter.class.isAssignableFrom(genericClass)) {
-                    Type type = genericClass.getGenericSuperclass();
-                    if (type instanceof ParameterizedType) {
-                        genericClass = (Class<?>) ((ParameterizedType) type).getActualTypeArguments()[0];
-                    } else {
-                        type = type.getClass();
-                    }
-                    continue;
+        Class<?> genericClass = clazz;
+        while (!QEntity.class.isAssignableFrom(genericClass)) {
+            if (QFilter.class.isAssignableFrom(genericClass)) {
+                Type type = genericClass.getGenericSuperclass();
+                if (type instanceof ParameterizedType) {
+                    genericClass = (Class<?>) ((ParameterizedType) type).getActualTypeArguments()[0];
+                } else {
+                    type = type.getClass();
                 }
-
-                Type[] interfaces = genericClass.getGenericInterfaces();
-                genericClass = null;
-                for (Type iface : interfaces) {
-                    if (iface instanceof ParameterizedType) {
-                        Type[] params = ((ParameterizedType) iface).getActualTypeArguments();
-                        if (QRecord.class.isAssignableFrom((Class<?>) params[0])) {
-                            genericClass = (Class<?>) params[0];
-                            break;
-                        }
-                    }
-                }
-                if (genericClass == null) {
-                    throw new IllegalArgumentException(clazz.getName() + " is not valid a model(QEntity, QRecord or QFilter)");
-                }
+                continue;
             }
 
-            schema = new HSchema((Class<? extends QEntity<?>>) genericClass, isEntity);
-            relations.put(genericClass, schema);
+            Type[] interfaces = genericClass.getGenericInterfaces();
+            genericClass = null;
+            for (Type iface : interfaces) {
+                if (iface instanceof ParameterizedType) {
+                    Type[] params = ((ParameterizedType) iface).getActualTypeArguments();
+                    if (QRecord.class.isAssignableFrom((Class<?>) params[0])) {
+                        genericClass = (Class<?>) params[0];
+                        break;
+                    }
+                }
+            }
+            if (genericClass == null) {
+                throw new IllegalArgumentException(clazz.getName() + " is not valid a model(QEntity, QRecord or QFilter)");
+            }
+        }
+
+        synchronized (relations) {
+            HSchema schema = relations.get(genericClass);
+            if (schema == null) {
+                schema = new HSchema((Class<? extends QEntity<?>>) genericClass, isEntity);
+                relations.put(genericClass, schema);
+            }
             return schema;
         }
     }
@@ -147,7 +152,7 @@ public class HSchema extends HModel {
 
 
     @Override
-    protected HSchema loadSchema() {
+    protected HSchema loadSchema(Connection dbConn) {
         return this;
     }
 
@@ -156,25 +161,24 @@ public class HSchema extends HModel {
         return this.tableName;
     }
 
-    public QJoin getJoin(String join) {
+    public QJoin getJoin(String join, Connection dbConn) {
         this.initialize();
         int next = join.indexOf('@', 1);
         String nextJoin = null;
         if (next > 0) {
             nextJoin = join.substring(next);
             join = join.substring(0, next);
-            QJoin subJoin = getJoin(join);
-            return subJoin.getTargetRelation().getJoin(nextJoin);
+            QJoin subJoin = getJoin(join, dbConn);
+            return subJoin.getTargetRelation(dbConn).getJoin(nextJoin, dbConn);
         }
         return joins.get(join);
     }
 
-    static String getColumnExpr(HModel model, Field f) {
+    String getColumnExpr(Field f) {
         String columnExpr = Helper.getColumnName(f);
         if (columnExpr != null) return columnExpr;
-        HSchema schema = model.loadSchema();
-        if (schema != null && schema.attributes != null) {
-            QAttribute attr = schema.attributes.get(f.getName());
+        if (this.attributes != null) {
+            QAttribute attr = this.attributes.get(f.getName());
             if (attr != null) return attr.getEncodedExpr();
         }
         return null;

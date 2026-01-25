@@ -37,11 +37,12 @@ public class QStore<T> implements ViewResolver {
 
 
     public <E extends QEntity<E>, R extends QRecord<E>> List<R> selectList(HModel view, Class<R> resultType, QFilter<E> filter) {
-        if (filter != null && HSchema.loadSchema(filter.getClass(), false) != view.loadSchema()) {
+        HSchema viewSchema = view.loadSchema(sqlSessionTemplate.getConnection());
+        if (filter != null && loadSchema(filter.getClass(), false) != viewSchema) {
             throw new IllegalArgumentException("Filter type is not related to result type.");
         }
 
-        SqlBuilder gen = new SqlBuilder(view, this);
+        SqlBuilder gen = new SqlBuilder(viewSchema, this);
         HQuery query = gen.buildSelect(resultType, filter);
 
         String id = registerMapper(query.with, resultType);
@@ -60,11 +61,11 @@ public class QStore<T> implements ViewResolver {
     }
 
     public <E extends QEntity<E>, R extends QRecord<E>> List<R> selectList(Class<R> resultType, QFilter<E> filter) {
-        return selectList(HSchema.loadSchema(resultType, false), resultType, filter);
+        return selectList(loadSchema(resultType, false), resultType, filter);
     }
 
     public <E extends QEntity<E>> int insert(QEntity<E> entity, boolean updateOnConflict) {
-        HSchema schema = HSchema.loadSchema(entity.getClass(), false);
+        HSchema schema = loadSchema(entity.getClass(), false);
         SqlBuilder gen = new SqlBuilder(schema, this);
         String query = gen.buildInsert(entity, updateOnConflict);
 
@@ -82,8 +83,23 @@ public class QStore<T> implements ViewResolver {
         }
     }
 
+    @Override
+    public HSchema loadSchema(Class<?> entityType, boolean isEntity) {
+        return HSchema.loadSchema(entityType, isEntity, sqlSessionTemplate.getConnection());
+    }
+
+    @Override
+    public HSchema getTargetSchema(QJoin join) {
+        return join.getTargetRelation(sqlSessionTemplate.getConnection()).loadSchema(sqlSessionTemplate.getConnection());
+    }
+
+    @Override
+    public QJoin getJoin(HModel model, String alias) {
+        return model.getJoin(alias, sqlSessionTemplate.getConnection());
+    }
+
     public <E extends QEntity<E>> int update(QUniqueRecord<E> entity) {
-        HSchema schema = HSchema.loadSchema(entity.getClass(), false);
+        HSchema schema = loadSchema(entity.getClass(), false);
         SqlBuilder gen = new SqlBuilder(schema, this);
         String query = gen.buildUpdate(entity);
 

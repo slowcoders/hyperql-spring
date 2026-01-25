@@ -4,6 +4,8 @@ import org.slowcoders.hyperquery.impl.HModel;
 import org.slowcoders.hyperquery.impl.HSchema;
 import org.slowcoders.hyperquery.impl.ViewResolver;
 
+import java.sql.Connection;
+
 public class QInlineView extends HModel {
 
     private final String viewDefinition;
@@ -13,8 +15,8 @@ public class QInlineView extends HModel {
     }
 
     @Override
-    protected HSchema loadSchema() {
-        return HSchema.loadSchema((Class)QEntity.class, false);
+    protected HSchema loadSchema(Connection dbConn) {
+        return HSchema.loadSchema((Class)QEntity.class, false, dbConn);
     }
 
     @Override
