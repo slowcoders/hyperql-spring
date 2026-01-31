@@ -9,15 +9,21 @@ import org.apache.ibatis.scripting.xmltags.*;
 import org.apache.ibatis.session.Configuration;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.slowcoders.hyperquery.core.*;
+import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.ConnectionCallback;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+import javax.sql.DataSource;
 import java.lang.reflect.Field;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.*;
 
-public class QStore<T> implements ViewResolver {
+public class QStore<T> implements ViewResolver, JdbcConnector {
     private final Configuration configuration;
     private final SqlSessionTemplate sqlSessionTemplate;
     private final Class<? extends QRepository> repositoryType;
@@ -37,12 +43,12 @@ public class QStore<T> implements ViewResolver {
 
 
     public <E extends QEntity<E>, R extends QRecord<E>> List<R> selectList(HModel view, Class<R> resultType, QFilter<E> filter) {
-        HSchema viewSchema = view.loadSchema(sqlSessionTemplate.getConnection());
+        HSchema viewSchema = view.loadSchema(this);
         if (filter != null && loadSchema(filter.getClass(), false) != viewSchema) {
             throw new IllegalArgumentException("Filter type is not related to result type.");
         }
 
-        SqlBuilder gen = new SqlBuilder(viewSchema, this);
+        SqlBuilder gen = new SqlBuilder(view, this);
         HQuery query = gen.buildSelect(resultType, filter);
 
         String id = registerMapper(query.with, resultType);
@@ -85,17 +91,17 @@ public class QStore<T> implements ViewResolver {
 
     @Override
     public HSchema loadSchema(Class<?> entityType, boolean isEntity) {
-        return HSchema.loadSchema(entityType, isEntity, sqlSessionTemplate.getConnection());
+        return HSchema.loadSchema(entityType, isEntity, this);
     }
 
     @Override
     public HSchema getTargetSchema(QJoin join) {
-        return join.getTargetRelation(sqlSessionTemplate.getConnection()).loadSchema(sqlSessionTemplate.getConnection());
+        return join.getTargetRelation(this).loadSchema(this);
     }
 
     @Override
     public QJoin getJoin(HModel model, String alias) {
-        return model.getJoin(alias, sqlSessionTemplate.getConnection());
+        return model.getJoin(alias, this);
     }
 
     public <E extends QEntity<E>> int update(QUniqueRecord<E> entity) {
@@ -260,5 +266,23 @@ public class QStore<T> implements ViewResolver {
                 return true;
         }
         return false;
+    }
+
+    @Override
+    public <T> T execute(ConnectionCallback<T> action) throws DataAccessException {
+        DataSource dataSource = sqlSessionTemplate
+                .getSqlSessionFactory()
+                .getConfiguration()
+                .getEnvironment()
+                .getDataSource();
+
+        Connection con = DataSourceUtils.getConnection(dataSource);
+        try {
+            return action.doInConnection(con);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            DataSourceUtils.releaseConnection(con, dataSource);
+        }
     }
 }

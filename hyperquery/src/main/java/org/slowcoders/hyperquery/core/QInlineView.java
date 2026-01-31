@@ -2,9 +2,8 @@ package org.slowcoders.hyperquery.core;
 
 import org.slowcoders.hyperquery.impl.HModel;
 import org.slowcoders.hyperquery.impl.HSchema;
+import org.slowcoders.hyperquery.impl.JdbcConnector;
 import org.slowcoders.hyperquery.impl.ViewResolver;
-
-import java.sql.Connection;
 
 public class QInlineView extends HModel {
 
@@ -15,7 +14,7 @@ public class QInlineView extends HModel {
     }
 
     @Override
-    protected HSchema loadSchema(Connection dbConn) {
+    protected HSchema loadSchema(JdbcConnector dbConn) {
         return HSchema.loadSchema((Class)QEntity.class, false, dbConn);
     }
 

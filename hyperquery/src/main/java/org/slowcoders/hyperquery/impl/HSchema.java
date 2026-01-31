@@ -2,14 +2,15 @@ package org.slowcoders.hyperquery.impl;
 
 import jakarta.persistence.Column;
 import org.slowcoders.hyperquery.core.*;
+import org.slowcoders.hyperquery.impl.jdbc.JdbcColumn;
+import org.slowcoders.hyperquery.impl.jdbc.JdbcSchemaLoader;
+import org.slowcoders.hyperquery.impl.jdbc.PGSchemaLoader;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -24,6 +25,8 @@ public class HSchema extends HModel {
     private Map<String, QAttribute> attributes;
 
     private static final HashMap<Class<?>, HSchema> relations = new HashMap<>();
+    private ArrayList<JdbcColumn> jdbcColumns;
+    private ArrayList<String> pkColumnNames;
 
     private static class EmptyEntity implements QEntity<EmptyEntity> {}
     static {
@@ -46,7 +49,7 @@ public class HSchema extends HModel {
     public final Class<? extends QRecord<?>> getEntityType() { return entityType; }
 
     public QAttribute getAttribute(String property) {
-        this.initialize();
+//        this.initialize(conn);
         return attributes.get(property);
     }
 
@@ -67,8 +70,18 @@ public class HSchema extends HModel {
 //        return relation;
 //    }
 
-    public synchronized void initialize() {
+    static JdbcSchemaLoader jdbcSchemaLoader = null;
+    public synchronized void initialize(Connection conn) throws SQLException {
         if (joins != null) return;
+
+        if (jdbcSchemaLoader == null) {
+            jdbcSchemaLoader = new PGSchemaLoader(conn);
+        }
+        if (!this.tableName.isEmpty()) {
+            JdbcSchemaLoader.TablePath tablePath = jdbcSchemaLoader.makeTablePath(tableName);
+            this.pkColumnNames = jdbcSchemaLoader.getPrimaryKeys(conn, tablePath);
+            this.jdbcColumns = jdbcSchemaLoader.getColumns(conn, new HashMap<>(), tablePath, pkColumnNames);
+        }
 
         HashMap<String, QJoin> joins = new HashMap<>();
         HashMap<String, QLambda> lambdas = new HashMap<>();
@@ -105,7 +118,7 @@ public class HSchema extends HModel {
         this.attributes = attributes;
     }
 
-    public static HSchema loadSchema(Class<?> clazz, boolean isEntity, Connection dbConn) {
+    public static HSchema loadSchema(Class<?> clazz, boolean isEntity, JdbcConnector dbConn) {
         synchronized (relations) {
             HSchema schema = relations.get(clazz);
             if (schema != null) return schema;
@@ -142,7 +155,12 @@ public class HSchema extends HModel {
         synchronized (relations) {
             HSchema schema = relations.get(genericClass);
             if (schema == null) {
-                schema = new HSchema((Class<? extends QEntity<?>>) genericClass, isEntity);
+                final HSchema newSchema = new HSchema((Class<? extends QEntity<?>>) genericClass, isEntity);
+                dbConn.execute(conn -> {
+                    newSchema.initialize(conn);
+                    return null;
+                });
+                schema = newSchema;
                 relations.put(genericClass, schema);
             }
             return schema;
@@ -152,7 +170,7 @@ public class HSchema extends HModel {
 
 
     @Override
-    protected HSchema loadSchema(Connection dbConn) {
+    protected HSchema loadSchema(JdbcConnector dbConn) {
         return this;
     }
 
@@ -161,8 +179,8 @@ public class HSchema extends HModel {
         return this.tableName;
     }
 
-    public QJoin getJoin(String join, Connection dbConn) {
-        this.initialize();
+    public QJoin getJoin(String join, JdbcConnector dbConn) {
+//        this.initialize(conn);
         int next = join.indexOf('@', 1);
         String nextJoin = null;
         if (next > 0) {
@@ -174,7 +192,7 @@ public class HSchema extends HModel {
         return joins.get(join);
     }
 
-    String getColumnExpr(Field f) {
+    public String getColumnExpr(Field f) {
         String columnExpr = Helper.getColumnName(f);
         if (columnExpr != null) return columnExpr;
         if (this.attributes != null) {
@@ -184,49 +202,49 @@ public class HSchema extends HModel {
         return null;
     }
 
-    public static class TablePath {
-        private final String catalog;
-        private final String schema;
-        private final String simpleName;
-
-        TablePath(String catalog, String schema, String simpleName) {
-            this.catalog = (catalog);
-            this.schema = (schema);
-            this.simpleName = (simpleName);
-        }
-
-
-        public String getSimpleName() {
-            return simpleName;
-        }
-
-        public String getCatalog() {
-            return catalog;
-        }
-
-        public String getSchema() {
-            return schema;
-        }
-    }
-    private ArrayList<String> getPrimaryKeys(Connection conn, TablePath tablePath) throws SQLException {
-        DatabaseMetaData md = conn.getMetaData();
-        ResultSet rs = md.getPrimaryKeys(tablePath.getCatalog(), tablePath.getSchema(), tablePath.getSimpleName());
-        ArrayList<String> keys = new ArrayList<>();
-        int next_key_seq = 1;
-        while (rs.next()) {
-            String key = rs.getString("column_name");
-            if (false) {
-                // postgresql 에서만 동작.
-                int seq = rs.getInt("key_seq");
-                if (seq != next_key_seq) {
-                    throw new RuntimeException("something wrong");
-                }
-                next_key_seq++;
-            }
-            keys.add(key);
-        }
-        return keys;
-    }
+//    public static class TablePath {
+//        private final String catalog;
+//        private final String schema;
+//        private final String simpleName;
+//
+//        TablePath(String catalog, String schema, String simpleName) {
+//            this.catalog = (catalog);
+//            this.schema = (schema);
+//            this.simpleName = (simpleName);
+//        }
+//
+//
+//        public String getSimpleName() {
+//            return simpleName;
+//        }
+//
+//        public String getCatalog() {
+//            return catalog;
+//        }
+//
+//        public String getSchema() {
+//            return schema;
+//        }
+//    }
+//    private ArrayList<String> getPrimaryKeys(Connection conn, TablePath tablePath) throws SQLException {
+//        DatabaseMetaData md = conn.getMetaData();
+//        ResultSet rs = md.getPrimaryKeys(tablePath.getCatalog(), tablePath.getSchema(), tablePath.getSimpleName());
+//        ArrayList<String> keys = new ArrayList<>();
+//        int next_key_seq = 1;
+//        while (rs.next()) {
+//            String key = rs.getString("column_name");
+//            if (false) {
+//                // postgresql 에서만 동작.
+//                int seq = rs.getInt("key_seq");
+//                if (seq != next_key_seq) {
+//                    throw new RuntimeException("something wrong");
+//                }
+//                next_key_seq++;
+//            }
+//            keys.add(key);
+//        }
+//        return keys;
+//    }
 
     static class Helper implements QEntity<Helper> {
         static String getColumnName(Field f) {

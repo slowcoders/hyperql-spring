@@ -11,7 +11,7 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 public class SqlBuilder extends ViewNode {
-    private final HSchema rootSchema;
+    private final HModel rootSchema;
     private final ViewResolver viewResolver;
     private ViewNode currView = this;
     private JoinNode currNode;
@@ -35,7 +35,7 @@ public class SqlBuilder extends ViewNode {
 
             """;
 
-    public SqlBuilder(HSchema schema, ViewResolver viewResolver ) {
+    public SqlBuilder(HModel schema, ViewResolver viewResolver ) {
         this.rootSchema = schema;
         this.viewResolver = viewResolver;
         this.currNode = new JoinNode(rootSchema, "t_0");
@@ -237,7 +237,7 @@ public class SqlBuilder extends ViewNode {
     }
 
     static Pattern ColumnNameOnly = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*");
-    List<ColumnMapping> parseColumnMappings(HSchema view, Class<?> recordType, String propertyPrefix) {
+    List<ColumnMapping> parseColumnMappings(HModel view, Class<?> recordType, String propertyPrefix) {
         try {
             List<ColumnMapping> columnMappings = new ArrayList<>();
             for (Field f : recordType.getDeclaredFields()) {

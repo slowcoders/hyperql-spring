@@ -3,8 +3,7 @@ package org.slowcoders.hyperquery.core;
 import org.slowcoders.hyperquery.impl.AliasNode;
 import org.slowcoders.hyperquery.impl.HModel;
 import org.slowcoders.hyperquery.impl.HSchema;
-
-import java.sql.Connection;
+import org.slowcoders.hyperquery.impl.JdbcConnector;
 
 public class QJoin extends AliasNode {
 
@@ -39,7 +38,7 @@ public class QJoin extends AliasNode {
     }
     public boolean isToUnique() { return toUnique; }
 
-    public HModel getTargetRelation(Connection dbConn) {
+    public HModel getTargetRelation(JdbcConnector dbConn) {
         if (model == null) {
             model = HSchema.loadSchema(viewType, false, dbConn);
         }

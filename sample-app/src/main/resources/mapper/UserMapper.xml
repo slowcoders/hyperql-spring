@@ -81,4 +81,40 @@
         </include>
     </select>
 
+    <sql id="onPromotionPlanChanged">
+        WITH _CHANGED as (
+            select _NEW.*
+            from _NEW, _OLD
+            where _NEW.id = _OLD.id
+                and _NEW.discount_percentage != _OLD.discount_percentage
+        ), _OLD as (
+            select bk$.*
+            from bookstore.book bk$, _CHANGED
+            where bk$.publisher_id = _CHANGED.publisher_id
+        ), _NEW as (
+            update bookstore.book bk$ SET
+                price = bk$.list_price - bk$.list_price * _CHANGED.discount_percentage / 100
+            from _OLD, _CHANGED
+            where bk$.id = _OLD.id
+                and bk$.publisher_id = _CHANGED.publisher_id
+            returning *
+        ), onBookChanged as (
+            <include refid="onBookPriceChanged" />
+        )
+    </sql>
+
+    <sql id="onBookPriceChanged">
+        WITH _OLD_DATA as (
+            select bk$.*
+            from bookstore.book bk$
+            where ${filter}
+        ), _NEW_DATA as (
+            update bookstore.book bk$ SET
+                ${record}
+            from _OLD_DATA
+            where bk$.id = _OLD_DATA.id
+            returning *
+        )
+    </sql>
+
 </mapper>

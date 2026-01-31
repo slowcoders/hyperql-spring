@@ -2,9 +2,9 @@ package org.slowcoders.hyperquery.core;
 
 import org.slowcoders.hyperquery.impl.HModel;
 import org.slowcoders.hyperquery.impl.HSchema;
+import org.slowcoders.hyperquery.impl.JdbcConnector;
 import org.slowcoders.hyperquery.impl.ViewResolver;
 
-import java.sql.Connection;
 import java.util.Map;
 
 public class QMapperView<R extends QRecord<?>> extends HModel {
@@ -37,7 +37,7 @@ public class QMapperView<R extends QRecord<?>> extends HModel {
     }
 
     @Override
-    protected HSchema loadSchema(Connection dbConn) {
+    protected HSchema loadSchema(JdbcConnector dbConn) {
         if (schema == null) {
             schema = HSchema.loadSchema(recordType, false, dbConn);
         }
