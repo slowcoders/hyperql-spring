@@ -3,14 +3,12 @@ package org.slowcoders.hyperql.sample.hq.bookstore;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-import org.slowcoders.hyperql.sample.hq.bookstore.api.HqBookController;
 import org.slowcoders.hyperql.sample.hq.bookstore.model.Book;
 import org.slowcoders.hyperquery.core.QColumn;
 import org.slowcoders.hyperquery.core.QFilter;
 import org.slowcoders.hyperquery.core.QRecord;
 
 import java.time.LocalDate;
-import java.util.List;
 
 @Getter
 @ToString
@@ -20,7 +18,7 @@ public class BookDto implements QRecord<Book> {
 
     private String title;
 
-    @QColumn("@author.name")
+    @QColumn(name = "@author.name")
     private String author;
 
 //    @QColumn("@weeklySales")

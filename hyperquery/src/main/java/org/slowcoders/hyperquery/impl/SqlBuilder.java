@@ -326,7 +326,7 @@ public class SqlBuilder extends ViewNode {
         sbQuery.incTab();
         for (ColumnMapping mapping : columnMappings) {
             if (mapping.columnName.equals("id")) continue;
-            String value = mapping.columnConfig.inputTransform().replaceAll("\\?", "_DATA." + mapping.columnName);
+            String value = mapping.columnConfig.writeTransform().replaceAll("\\?", "_DATA." + mapping.columnName);
             value = value.replaceAll("@", "t_0");
             sbQuery.write(mapping.columnName).write(" = ").write(value).write(",\n");
         }

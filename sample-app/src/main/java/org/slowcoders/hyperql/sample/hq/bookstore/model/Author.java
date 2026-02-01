@@ -11,17 +11,14 @@ import org.slowcoders.hyperquery.core.QJoin;
 public class Author implements QEntity<Author> {
     @Getter
     @Setter
-    @QColumn("id")
     private Long id;
 
     @Getter
     @Setter
-    @QColumn("name")
     private String name;
 
     @Getter
     @Setter
-    @QColumn("profile")
     private com.fasterxml.jackson.databind.JsonNode profile;
 
     public static QJoin book_ = QJoin.of(Book.class, "#.author_id = @.id");

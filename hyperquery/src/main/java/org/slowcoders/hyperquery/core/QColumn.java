@@ -6,7 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 
 @Retention(RetentionPolicy.RUNTIME)
 public @interface QColumn {
-    String value();
-    String inputTransform() default "?";
-    String outputTransform() default "?";
+    String name();
+    String writeTransform() default "?";
+    String readTransform() default "?";
 }

@@ -11,22 +11,16 @@ import java.util.List;
 @Getter
 public class AuthorDto implements QRecord<Author> {
 
-    @QColumn("id")
     private Long id;
 
-    @QColumn("name")
     private String name;
 
-    @QColumn("@books")
     private List<Book> books;
 
-    @QColumn("bookCount")
     private int bookCount;
 
-    @QColumn("salesAmount")
     private int salesAmount;
 
-    @QColumn("bookPriceAvr")
     private int bookPriceAvr;
 
 //    @QColumn("attr2")

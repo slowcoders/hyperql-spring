@@ -11,12 +11,10 @@ import org.slowcoders.hyperquery.core.QJoin;
 public class CustomerFriendLink implements QEntity<CustomerFriendLink> {
     @Getter
     @Setter
-    @QColumn("customer_id")
     private Long customerId;
 
     @Getter
     @Setter
-    @QColumn("friend_id")
     private Long friendId;
 
     public static QJoin friend = QJoin.of(Customer.class, "#.id = @.friend_id");

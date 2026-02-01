@@ -215,7 +215,7 @@ public class JdbcSchema extends QSchema {
                 sb.writeln("@org.hibernate.annotations.Type(io.hypersistence.utils.hibernate.type.json.JsonType.class)");
             }
         } else {
-            sb.write("@QColumn(").writeQuoted(col.getPhysicalName()).write(")\n");
+            // sb.write("@QColumn(").writeQuoted(col.getPhysicalName()).write(")\n");
         }
 
         String fieldName = isJPA ? getJavaFieldName(col)

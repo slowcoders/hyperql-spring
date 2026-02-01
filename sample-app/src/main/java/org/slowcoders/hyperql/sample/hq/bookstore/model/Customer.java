@@ -11,27 +11,22 @@ import org.slowcoders.hyperquery.core.QJoin;
 public class Customer implements QEntity<Customer> {
     @Getter
     @Setter
-    @QColumn("id")
     private Long id;
 
     @Getter
     @Setter
-    @QColumn("height")
     private Float height;
 
     @Getter
     @Setter
-    @QColumn("mass")
     private Float mass;
 
     @Getter
     @Setter
-    @QColumn("memo")
     private com.fasterxml.jackson.databind.JsonNode memo;
 
     @Getter
     @Setter
-    @QColumn("name")
     private String name;
 
     public static QJoin bookOrder_ = QJoin.of(BookOrder.class, "#.customer_id = @.id");

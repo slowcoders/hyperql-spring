@@ -2,6 +2,7 @@ package org.slowcoders.hyperquery.impl.jdbc;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.JsonNode;
+import org.slowcoders.hyperquery.util.CaseConverter;
 import org.slowcoders.hyperquery.util.ClassUtils;
 
 import java.lang.reflect.Field;
@@ -37,7 +38,7 @@ public class JdbcColumn { // extends QColumn {
     public JdbcColumn(ResultSetMetaData md, int col, /*ColumnBinder fkBinder,*/ String comment, List<String> primaryKeys) throws SQLException {
         this.physicalName = md.getColumnName(col);
         this.javaType = resolveJavaType(md, col);
-//        this.schema = schema;
+        this.fieldName = CaseConverter.toCamelCase(physicalName, false);
 
         this.isAutoIncrement = md.isAutoIncrement(col);
         this.isReadOnly = md.isReadOnly(col) | this.isAutoIncrement;
@@ -159,6 +160,10 @@ public class JdbcColumn { // extends QColumn {
 
     public final String getPhysicalName() {
         return physicalName;
+    }
+
+    public final String getFieldName() {
+        return this.fieldName;
     }
 
 //    public void setJoinedPrimaryColumn_unsafe(String jsonKey, String pk_table, String pk_column) {

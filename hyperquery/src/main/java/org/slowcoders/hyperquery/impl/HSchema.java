@@ -108,6 +108,9 @@ public class HSchema extends HModel {
                     ((AliasNode)attr).setName(f.getName());
                     attributes.put(f.getName(), attr);
                 }
+                else {
+
+                }
             }
         } catch (IllegalAccessException e) {
             throw new RuntimeException(e);
@@ -195,61 +198,27 @@ public class HSchema extends HModel {
     public String getColumnExpr(Field f) {
         String columnExpr = Helper.getColumnName(f);
         if (columnExpr != null) return columnExpr;
+        String name = f.getName();
         if (this.attributes != null) {
-            QAttribute attr = this.attributes.get(f.getName());
+            QAttribute attr = this.attributes.get(name);
             if (attr != null) return attr.getEncodedExpr();
         }
-        return null;
+        for (JdbcColumn col : jdbcColumns) {
+            if (name.equals(col.getFieldName())) {
+                return col.getPhysicalName();
+            }
+        }
+        QJoin join = this.joins.get("@" + name);
+        if (join != null) {
+            return "@" + name;
+        }
+        throw new RuntimeException("Cannot find column expression for " + name);
     }
-
-//    public static class TablePath {
-//        private final String catalog;
-//        private final String schema;
-//        private final String simpleName;
-//
-//        TablePath(String catalog, String schema, String simpleName) {
-//            this.catalog = (catalog);
-//            this.schema = (schema);
-//            this.simpleName = (simpleName);
-//        }
-//
-//
-//        public String getSimpleName() {
-//            return simpleName;
-//        }
-//
-//        public String getCatalog() {
-//            return catalog;
-//        }
-//
-//        public String getSchema() {
-//            return schema;
-//        }
-//    }
-//    private ArrayList<String> getPrimaryKeys(Connection conn, TablePath tablePath) throws SQLException {
-//        DatabaseMetaData md = conn.getMetaData();
-//        ResultSet rs = md.getPrimaryKeys(tablePath.getCatalog(), tablePath.getSchema(), tablePath.getSimpleName());
-//        ArrayList<String> keys = new ArrayList<>();
-//        int next_key_seq = 1;
-//        while (rs.next()) {
-//            String key = rs.getString("column_name");
-//            if (false) {
-//                // postgresql 에서만 동작.
-//                int seq = rs.getInt("key_seq");
-//                if (seq != next_key_seq) {
-//                    throw new RuntimeException("something wrong");
-//                }
-//                next_key_seq++;
-//            }
-//            keys.add(key);
-//        }
-//        return keys;
-//    }
 
     static class Helper implements QEntity<Helper> {
         static String getColumnName(Field f) {
             QColumn anno = f.getAnnotation(QColumn.class);
-            if (anno != null) return anno.value();
+            if (anno != null) return anno.name();
 
             PKColumn pk = f.getAnnotation(PKColumn.class);
             if (pk != null) return pk.value();

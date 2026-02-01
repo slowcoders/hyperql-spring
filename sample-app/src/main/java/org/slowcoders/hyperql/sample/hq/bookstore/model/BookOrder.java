@@ -11,12 +11,10 @@ import org.slowcoders.hyperquery.core.QJoin;
 public class BookOrder implements QEntity<BookOrder> {
     @Getter
     @Setter
-    @QColumn("customer_id")
     private Long customerId;
 
     @Getter
     @Setter
-    @QColumn("book_id")
     private Long bookId;
 
     public static QJoin book = QJoin.of(Book.class, "#.id = @.book_id");
