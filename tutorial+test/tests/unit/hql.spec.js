@@ -35,6 +35,21 @@ describe('Hyper Query operations', () => {
         console.log(response.data);
     });
 
+    test('Update Orders', async () => {
+        const url = `${baseUrl}/books/3003/orders`
+        const response = await axios.post(url, [
+            {
+                book_id: 3003,
+                customer_id: 1002,
+                order_date: "2021-01-01",
+            }, {
+                book_id: 3003,
+                customer_id: 1005,
+                order_date: "2021-01-02",
+            }]);
+        console.log(response.data);
+    });
+
     test('Patch Book', async () => {
         const url = `${baseUrl}/books/updateSalesPricePercent`
         const response = await axios.patch(url, {

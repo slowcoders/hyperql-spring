@@ -15,7 +15,7 @@ public class QJoin extends AliasNode {
         Right,
         Cross
     }
-    private HModel model;
+    private HModel target;
     private final boolean toUnique;
     private Class<? extends QEntity<?>> viewType;
 
@@ -23,7 +23,7 @@ public class QJoin extends AliasNode {
     protected QJoin(HModel inlineView, String joinOn, boolean toUnique) {
         super(joinOn);
         this.viewType = HiddenView.class;
-        this.model = inlineView;
+        this.target = inlineView;
         this.toUnique = toUnique;
     }
 
@@ -39,10 +39,10 @@ public class QJoin extends AliasNode {
     public boolean isToUnique() { return toUnique; }
 
     public HModel getTargetRelation(JdbcConnector dbConn) {
-        if (model == null) {
-            model = HSchema.loadSchema(viewType, false, dbConn);
+        if (target == null) {
+            target = HSchema.loadSchema(viewType, false, dbConn);
         }
-        return model;
+        return target;
     }
 
     public static QJoin of(Class<? extends QEntity<?>> recordType, String joinOn) {

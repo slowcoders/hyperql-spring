@@ -14,6 +14,7 @@ import java.util.List;
 public class AliasNode {
     private String name;
     private final String encodedExpr;
+    private HSchema schema;
 
     // 종속된 Alias(Attr, Lambda, Join) 목록
 //    private final HashMap<String, AliasNode> references = new HashMap<>();
@@ -25,7 +26,8 @@ public class AliasNode {
         this.encodedExpr = encodedExpr;
     }
 
-    final void setName(String name) {
+    final void setName(HSchema schema, String name) {
+        this.schema = schema;
         this.name = name;
     }
 
@@ -34,6 +36,9 @@ public class AliasNode {
         return name;
     }
 
+    public final HSchema getSchema() {
+        return schema;
+    }
     public final String getEncodedExpr() {
         return encodedExpr;
     }

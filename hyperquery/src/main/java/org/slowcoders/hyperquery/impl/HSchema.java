@@ -5,6 +5,7 @@ import org.slowcoders.hyperquery.core.*;
 import org.slowcoders.hyperquery.impl.jdbc.JdbcColumn;
 import org.slowcoders.hyperquery.impl.jdbc.JdbcSchemaLoader;
 import org.slowcoders.hyperquery.impl.jdbc.PGSchemaLoader;
+import org.springframework.data.annotation.Transient;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -12,10 +13,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class HSchema extends HModel {
     private final Class<? extends QRecord<?>> entityType;
@@ -47,6 +45,10 @@ public class HSchema extends HModel {
 
 
     public final Class<? extends QRecord<?>> getEntityType() { return entityType; }
+
+    public final List<String> getPrimaryKeys() {
+        return this.pkColumnNames;
+    }
 
     public QAttribute getAttribute(String property) {
 //        this.initialize(conn);
@@ -93,19 +95,19 @@ public class HSchema extends HModel {
                 if (QJoin.class.isAssignableFrom(propertyType)) {
                     f.setAccessible(true);
                     QJoin join = (QJoin) f.get(null);
-                    ((AliasNode)join).setName(f.getName());
+                    ((AliasNode)join).setName(this, f.getName());
                     joins.put("@" + f.getName(), join);
                 }
                 else if (QLambda.class.isAssignableFrom(propertyType)) {
                     f.setAccessible(true);
                     QLambda lambda = (QLambda) f.get(null);
-                    ((AliasNode)lambda).setName(f.getName());
+                    ((AliasNode)lambda).setName(this, f.getName());
                     lambdas.put(f.getName(), lambda);
                 }
                 else if (QAttribute.class.isAssignableFrom(propertyType)) {
                     f.setAccessible(true);
                     QAttribute attr = (QAttribute) f.get(null);
-                    ((AliasNode)attr).setName(f.getName());
+                    ((AliasNode)attr).setName(this, f.getName());
                     attributes.put(f.getName(), attr);
                 }
                 else {
@@ -121,38 +123,50 @@ public class HSchema extends HModel {
         this.attributes = attributes;
     }
 
+    public static Class<QEntity<?>> getRootEntityType(Class<?> clazz) {
+        boolean isRecord = QRecord.class.isAssignableFrom(clazz);
+        while (true) {
+            Class<?> _super = clazz.getSuperclass();
+            if (isRecord) {
+                if (!QRecord.class.isAssignableFrom(_super))
+                    break;
+            }
+            else if (_super == QStore.class ||
+                     _super == QFilter.class) {
+                break;
+            }
+            clazz = _super;
+        }
+
+        while (!QEntity.class.isAssignableFrom(clazz)) {
+            Type type = clazz.getGenericSuperclass();
+            if (type instanceof ParameterizedType) {
+                clazz = (Class<?>) ((ParameterizedType) type).getActualTypeArguments()[0];
+                continue;
+            }
+
+            Type[] interfaces = clazz.getGenericInterfaces();
+            for (Type iface : interfaces) {
+                if (iface instanceof ParameterizedType) {
+                    Type[] params = ((ParameterizedType) iface).getActualTypeArguments();
+                    if (QRecord.class.isAssignableFrom((Class<?>) params[0])) {
+                        return (Class<QEntity<?>>) params[0];
+                    }
+                }
+            }
+            clazz = clazz.getSuperclass();
+        }
+        return (Class<QEntity<?>>) clazz;
+    }
     public static HSchema loadSchema(Class<?> clazz, boolean isEntity, JdbcConnector dbConn) {
         synchronized (relations) {
             HSchema schema = relations.get(clazz);
             if (schema != null) return schema;
         }
 
-        Class<?> genericClass = clazz;
-        while (!QEntity.class.isAssignableFrom(genericClass)) {
-            if (QFilter.class.isAssignableFrom(genericClass)) {
-                Type type = genericClass.getGenericSuperclass();
-                if (type instanceof ParameterizedType) {
-                    genericClass = (Class<?>) ((ParameterizedType) type).getActualTypeArguments()[0];
-                } else {
-                    type = type.getClass();
-                }
-                continue;
-            }
-
-            Type[] interfaces = genericClass.getGenericInterfaces();
-            genericClass = null;
-            for (Type iface : interfaces) {
-                if (iface instanceof ParameterizedType) {
-                    Type[] params = ((ParameterizedType) iface).getActualTypeArguments();
-                    if (QRecord.class.isAssignableFrom((Class<?>) params[0])) {
-                        genericClass = (Class<?>) params[0];
-                        break;
-                    }
-                }
-            }
-            if (genericClass == null) {
-                throw new IllegalArgumentException(clazz.getName() + " is not valid a model(QEntity, QRecord or QFilter)");
-            }
+        Class<?> genericClass = getRootEntityType(clazz);
+        if (genericClass == null) {
+            throw new IllegalArgumentException(clazz.getName() + " is not valid a model(QEntity, QRecord or QFilter)");
         }
 
         synchronized (relations) {
@@ -212,7 +226,7 @@ public class HSchema extends HModel {
         if (join != null) {
             return "@" + name;
         }
-        throw new RuntimeException("Cannot find column expression for " + name);
+        return name;
     }
 
     static class Helper implements QEntity<Helper> {
@@ -252,6 +266,11 @@ public class HSchema extends HModel {
                 }
             }
             return (Class<? extends QRecord<?>>) f.getType();
+        }
+
+        public static boolean isTransient(Field f) {
+            return Modifier.isTransient(f.getModifiers())
+                    || f.getAnnotation(Transient.class) != null;
         }
     }
 }

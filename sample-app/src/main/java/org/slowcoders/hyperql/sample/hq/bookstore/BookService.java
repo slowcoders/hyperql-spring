@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 public class BookService extends QStore<Book> {
 
     BookService(SqlSessionFactory sqlSessionFactory, SqlSessionTemplate sqlSessionTemplate, BookRepository repository) {
-        super(sqlSessionFactory.getConfiguration(), sqlSessionTemplate, BookRepository.class);
+        super(sqlSessionFactory.getConfiguration(), sqlSessionTemplate, repository);
     }
 
 }

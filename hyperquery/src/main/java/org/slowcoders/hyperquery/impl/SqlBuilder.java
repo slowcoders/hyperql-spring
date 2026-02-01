@@ -4,9 +4,11 @@ import org.apache.ibatis.parsing.XNode;
 import org.apache.ibatis.parsing.XPathParser;
 import org.slowcoders.hyperquery.core.*;
 import org.slowcoders.hyperquery.util.SqlWriter;
+import org.springframework.data.annotation.Transient;
 import org.w3c.dom.Node;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.*;
 import java.util.regex.Pattern;
 
@@ -241,8 +243,13 @@ public class SqlBuilder extends ViewNode {
         try {
             List<ColumnMapping> columnMappings = new ArrayList<>();
             for (Field f : recordType.getDeclaredFields()) {
+                if (Modifier.isStatic(f.getModifiers()) ||
+                        HSchema.Helper.isTransient(f)) continue;
+
                 String columnExpr = view.getColumnExpr(f);
-                if (columnExpr == null) continue;
+                if (columnExpr == null) {
+                    throw new RuntimeException("Cannot find column expression for " + f.getName());
+                }
                 Class<? extends QRecord<?>> elementType = HSchema.Helper.getElementType(f);
                 if (QRecord.class.isAssignableFrom(elementType)) {
                     JoinNode node = pushNamespace(columnExpr);
@@ -326,7 +333,8 @@ public class SqlBuilder extends ViewNode {
         sbQuery.incTab();
         for (ColumnMapping mapping : columnMappings) {
             if (mapping.columnName.equals("id")) continue;
-            String value = mapping.columnConfig.writeTransform().replaceAll("\\?", "_DATA." + mapping.columnName);
+            String value = mapping.columnConfig == null ? "_DATA." + mapping.columnName :
+                    mapping.columnConfig.writeTransform().replaceAll("\\?", "_DATA." + mapping.columnName);
             value = value.replaceAll("@", "t_0");
             sbQuery.write(mapping.columnName).write(" = ").write(value).write(",\n");
         }
@@ -349,4 +357,86 @@ public class SqlBuilder extends ViewNode {
         return sbQuery.toString();
     }
 
+    public <E extends QEntity<E>> String buildUpdateCascaded(Object baseId, QJoin join, List<E> subEntities) {
+        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, rootSchema.getEntityType(), "");
+        sbQuery.write("WITH _DATA as (\n");
+        sbQuery.incTab();
+        if (subEntities.isEmpty()) {
+            sbQuery.write("select * from ").write(rootSchema.getTableName()).write(" where false");
+        } else {
+            sbQuery.incTab();
+            sbQuery.write("select ");
+            sbQuery.incTab();
+            for (ColumnMapping mapping : columnMappings) {
+                sbQuery.write("#{").write(mapping.fieldName).write("[0]} as ").write(mapping.columnName).write(",\n");
+            }
+            sbQuery.shrinkLength(2);
+            sbQuery.decTab();
+
+            for (int i = 1; i < subEntities.size(); i++) {
+                sbQuery.write("\nunion all\n");
+                sbQuery.write("select ");
+                sbQuery.incTab();
+                for (ColumnMapping mapping : columnMappings) {
+                    sbQuery.write("#{").write(mapping.fieldName).write("[").write(i).write("]} as ").write(mapping.columnName).write(",\n");
+                }
+                sbQuery.decTab();
+            }
+            sbQuery.decTab();
+        }
+        sbQuery.decTab();
+        sbQuery.write("\n)");
+        sbQuery.write("\nMERGE INTO ").write(rootSchema.getTableName()).write(" as t_0\n");
+        sbQuery.write("USING _DATA\n");
+        sbQuery.write("ON ");
+        for (String pk : rootSchema.getPrimaryKeys()) {
+            sbQuery.write("t_0.").write(pk).write(" = _DATA.").write(pk).write(" AND ");
+        }
+//        sbQuery.write(join.getJoinCriteria());
+        sbQuery.shrinkLength(5);
+        sbQuery.incTab();
+        sbQuery.decTab();
+        sbQuery.decTab();
+        sbQuery.write("\nWHEN MATCHED THEN\n");
+        sbQuery.incTab();
+        sbQuery.write("UPDATE SET\n");
+        sbQuery.incTab();
+        for (ColumnMapping mapping : columnMappings) {
+            if (mapping.columnName.equals("id")) continue;
+            String value = mapping.columnConfig == null ? "_DATA." + mapping.columnName :
+                    mapping.columnConfig.writeTransform().replaceAll("\\?", "_DATA." + mapping.columnName);
+            value = value.replaceAll("@", "t_0");
+            sbQuery.write(mapping.columnName).write(" = ").write(value).write(",\n");
+        }
+        sbQuery.shrinkLength(2);
+        sbQuery.decTab();
+        sbQuery.decTab();
+        sbQuery.write("\nWHEN NOT MATCHED THEN\n");
+        sbQuery.incTab();
+        sbQuery.write("INSERT ").write(" (");
+        for (ColumnMapping mapping : columnMappings) {
+            sbQuery.write(mapping.columnName).write(", ");
+        }
+        sbQuery.shrinkLength(2);
+        sbQuery.write(") VALUES (");
+        for (ColumnMapping mapping : columnMappings) {
+            sbQuery.write("_DATA.").write(mapping.columnName).write(", ");
+        }
+        sbQuery.shrinkLength(2);
+        sbQuery.write(")");
+        sbQuery.decTab();
+        sbQuery.write("\nWHEN NOT MATCHED BY SOURCE\n");
+        sbQuery.incTab();
+        sbQuery.write("AND EXISTS (\n");
+        sbQuery.incTab();
+        sbQuery.write("SELECT 1\n");
+        sbQuery.write("FROM ").write(join.getSchema().getTableName()).write(" c\n");
+        sbQuery.write("WHERE ").write(join.getJoinCriteria());
+        sbQuery.decTab().write("\n)");
+
+        sbQuery.decTab();
+        sbQuery.write("\nTHEN DELETE;\n");
+        sbQuery.write("select count(*) from _DATA");
+        return sbQuery.toString();
+    }
 }

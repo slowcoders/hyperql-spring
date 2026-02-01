@@ -9,9 +9,11 @@ import org.apache.ibatis.scripting.xmltags.*;
 import org.apache.ibatis.session.Configuration;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.slowcoders.hyperquery.core.*;
+import org.slowcoders.hyperquery.util.KVEntity;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.datasource.DataSourceUtils;
+import org.springframework.util.ClassUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -20,18 +22,29 @@ import org.w3c.dom.NodeList;
 import javax.sql.DataSource;
 import java.lang.reflect.Field;
 import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.*;
 
 public class QStore<T> implements ViewResolver, JdbcConnector {
     private final Configuration configuration;
     private final SqlSessionTemplate sqlSessionTemplate;
     private final Class<? extends QRepository> repositoryType;
+    private final HSchema schema;
 
-    public QStore(Configuration configuration, SqlSessionTemplate sqlSessionTemplate, Class<? extends QRepository> repositoryType) {
+    public QStore(Configuration configuration, SqlSessionTemplate sqlSessionTemplate, QRepository repository) {
         this.configuration = configuration;
         this.sqlSessionTemplate = sqlSessionTemplate;
-        this.repositoryType = repositoryType;
+        this.schema = HSchema.loadSchema(this.getClass(), true, this);
+        Class<?> repositoryType = null;
+        for (Class<?> iface : ClassUtils.getUserClass(repository).getInterfaces()) {
+            if (QRepository.class.isAssignableFrom(iface)) {
+                repositoryType = (Class) iface;
+                break;
+            }
+        }
+        this.repositoryType = (Class<? extends QRepository>) repositoryType;
+        if (repositoryType == null) {
+            throw new IllegalArgumentException("Repository must implement QRepository interface.");
+        }
     }
 
     public <E extends QEntity<E>, R extends QRecord<E>> R selectOne(Class<R> resultType, QFilter<E> filter) {
@@ -123,7 +136,27 @@ public class QStore<T> implements ViewResolver, JdbcConnector {
         }
     }
 
+    public <E extends QEntity<E>> List<E> updateCascadedEntities(Object parentEntityId, QJoin join, List<E> subEntities) {
+        HSchema schema = join.getTargetRelation(this).loadSchema(this);
+        SqlBuilder gen = new SqlBuilder(schema, this);
+        String query = gen.buildUpdateCascaded(parentEntityId, join, subEntities);
 
+        String id = registerMapper(null, this.schema.getEntityType());
+
+
+        QRecord._sql.set(query);
+        QRecord._session.set(getCurrentSessionInfo());
+
+        try {
+            KVEntity param = KVEntity.of("data", subEntities);
+            param.put("parent", KVEntity.of("id", parentEntityId));
+            List<E> res = sqlSessionTemplate.selectList(id, param);
+            return res;
+        } catch (RuntimeException e) {
+            System.out.println("Execution failed\n" + query.toString());
+            throw e;
+        }
+    }
     public Object getCurrentSessionInfo() {
         return null;
     }

@@ -5,6 +5,7 @@ import org.slowcoders.hyperql.sample.hq.bookstore.BookFilter;
 import org.slowcoders.hyperql.sample.hq.bookstore.BookService;
 import org.slowcoders.hyperql.sample.hq.bookstore.mapper.UserMapper;
 import org.slowcoders.hyperql.sample.hq.bookstore.model.Book;
+import org.slowcoders.hyperql.sample.hq.bookstore.model.BookOrder;
 import org.slowcoders.hyperql.sample.hq.bookstore.model.BookSales;
 import org.slowcoders.hyperquery.core.QFilter;
 import org.slowcoders.hyperquery.core.QMapperView;
@@ -55,6 +56,12 @@ public class HqBookController {
         List<BookDto> res = service.selectList(BookDto.class, filter);
         System.out.println(res);
         return res;
+    }
+
+    @PostMapping("/{id}/orders")
+    public List<BookOrder> updateOrderList(@PathVariable("id") int bookId, @RequestBody List<BookOrder> orders) {
+        List<BookOrder> new_orders = service.updateCascadedEntities(bookId, Book.bookOrder_, orders);
+        return new_orders;
     }
 
     @GetMapping("/sales")

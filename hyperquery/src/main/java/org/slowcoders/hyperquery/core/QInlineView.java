@@ -14,6 +14,11 @@ public class QInlineView extends HModel {
     }
 
     @Override
+    protected final Class<? extends QRecord<?>> getEntityType() {
+        return (Class) QEntity.class;
+    }
+
+    @Override
     protected HSchema loadSchema(JdbcConnector dbConn) {
         return HSchema.loadSchema((Class)QEntity.class, false, dbConn);
     }

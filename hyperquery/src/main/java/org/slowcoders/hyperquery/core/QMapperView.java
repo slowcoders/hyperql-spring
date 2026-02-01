@@ -37,6 +37,11 @@ public class QMapperView<R extends QRecord<?>> extends HModel {
     }
 
     @Override
+    protected final Class<? extends QRecord<?>> getEntityType() {
+        return recordType;
+    }
+
+    @Override
     protected HSchema loadSchema(JdbcConnector dbConn) {
         if (schema == null) {
             schema = HSchema.loadSchema(recordType, false, dbConn);
