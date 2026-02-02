@@ -7,6 +7,8 @@ import org.slowcoders.hyperquery.core.QEntity;
 import org.slowcoders.hyperquery.core.QFrom;
 import org.slowcoders.hyperquery.core.QJoin;
 
+import java.time.LocalDate;
+
 @QFrom("hql_demo.bookstore.book_order")
 public class BookOrder implements QEntity<BookOrder> {
     @Getter
@@ -16,6 +18,10 @@ public class BookOrder implements QEntity<BookOrder> {
     @Getter
     @Setter
     private Long bookId;
+
+    @Getter
+    @Setter
+    private LocalDate orderDate;
 
     public static QJoin book = QJoin.of(Book.class, "#.id = @.book_id");
 

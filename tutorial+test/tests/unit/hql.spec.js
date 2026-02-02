@@ -9,6 +9,7 @@ describe('Hyper Query operations', () => {
     const baseUrl = "http://localhost:7007/api/hq"
 
     beforeAll(async () => {
+        await initSampleDB();
     })
 
     test('Insert Book', async () => {
@@ -39,13 +40,13 @@ describe('Hyper Query operations', () => {
         const url = `${baseUrl}/books/3003/orders`
         const response = await axios.post(url, [
             {
-                book_id: 3003,
-                customer_id: 1002,
-                order_date: "2021-01-01",
+                bookId: 3003,
+                customerId: 1002,
+                orderDate: "2021-01-01",
             }, {
-                book_id: 3003,
-                customer_id: 1005,
-                order_date: "2021-01-02",
+                bookId: 3003,
+                customerId: 1005,
+                orderDate: "2021-01-02",
             }]);
         console.log(response.data);
     });

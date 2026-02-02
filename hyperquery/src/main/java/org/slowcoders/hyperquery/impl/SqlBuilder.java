@@ -368,7 +368,7 @@ public class SqlBuilder extends ViewNode {
             sbQuery.write("select ");
             sbQuery.incTab();
             for (ColumnMapping mapping : columnMappings) {
-                sbQuery.write("#{").write(mapping.fieldName).write("[0]} as ").write(mapping.columnName).write(",\n");
+                sbQuery.write("#{data[0].").write(mapping.fieldName).write("} as ").write(mapping.columnName).write(",\n");
             }
             sbQuery.shrinkLength(2);
             sbQuery.decTab();
@@ -378,12 +378,14 @@ public class SqlBuilder extends ViewNode {
                 sbQuery.write("select ");
                 sbQuery.incTab();
                 for (ColumnMapping mapping : columnMappings) {
-                    sbQuery.write("#{").write(mapping.fieldName).write("[").write(i).write("]} as ").write(mapping.columnName).write(",\n");
+                    sbQuery.write("#{data[").write(i).write("].").write(mapping.fieldName).write("} as ").write(mapping.columnName).write(",\n");
                 }
+                sbQuery.shrinkLength(2);
                 sbQuery.decTab();
             }
             sbQuery.decTab();
         }
+        sbQuery.decTab();
         sbQuery.decTab();
         sbQuery.write("\n)");
         sbQuery.write("\nMERGE INTO ").write(rootSchema.getTableName()).write(" as t_0\n");
@@ -394,8 +396,6 @@ public class SqlBuilder extends ViewNode {
         }
 //        sbQuery.write(join.getJoinCriteria());
         sbQuery.shrinkLength(5);
-        sbQuery.incTab();
-        sbQuery.decTab();
         sbQuery.decTab();
         sbQuery.write("\nWHEN MATCHED THEN\n");
         sbQuery.incTab();
@@ -431,7 +431,11 @@ public class SqlBuilder extends ViewNode {
         sbQuery.incTab();
         sbQuery.write("SELECT 1\n");
         sbQuery.write("FROM ").write(join.getSchema().getTableName()).write(" c\n");
-        sbQuery.write("WHERE ").write(join.getJoinCriteria());
+        String joinOn = join.getJoinCriteria();
+        joinOn = joinOn.replaceAll("#", "t_0");
+        joinOn = joinOn.replaceAll("@", "c");
+        sbQuery.write("WHERE ").write(joinOn);
+        sbQuery.write("    AND c.id = ").write("#{parent.id}");
         sbQuery.decTab().write("\n)");
 
         sbQuery.decTab();
@@ -439,4 +443,121 @@ public class SqlBuilder extends ViewNode {
         sbQuery.write("select count(*) from _DATA");
         return sbQuery.toString();
     }
+
+    public <E extends QEntity<E>> String buildUpdateCascaded2(Object baseId, QJoin join, List<E> subEntities) {
+        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, rootSchema.getEntityType(), "");
+        sbQuery.write("WITH _DATA as (\n");
+        sbQuery.incTab();
+        if (subEntities.isEmpty()) {
+            sbQuery.write("select * from ").write(rootSchema.getTableName()).write(" where false");
+        } else {
+            sbQuery.incTab();
+            sbQuery.write("select ");
+            sbQuery.incTab();
+            for (ColumnMapping mapping : columnMappings) {
+                sbQuery.write("#{data[0].").write(mapping.fieldName).write("}::").write(rootSchema.getColumnType(mapping.columnName)).write(" as ").write(mapping.columnName).write(",\n");
+            }
+            sbQuery.shrinkLength(2);
+            sbQuery.decTab();
+
+            for (int i = 1; i < subEntities.size(); i++) {
+                sbQuery.write("\nunion all\n");
+                sbQuery.write("select ");
+                sbQuery.incTab();
+                for (ColumnMapping mapping : columnMappings) {
+                    sbQuery.write("#{data[").write(i).write("].").write(mapping.fieldName).write("}::").write(rootSchema.getColumnType(mapping.columnName)).write(" as ").write(mapping.columnName).write(",\n");
+                }
+                sbQuery.shrinkLength(2);
+                sbQuery.decTab();
+            }
+            sbQuery.decTab();
+        }
+        sbQuery.decTab();
+        sbQuery.decTab();
+        sbQuery.write("\n), _UPSERT as (\n");
+        sbQuery.incTab();
+        sbQuery.write("INSERT INTO ").write(rootSchema.getTableName()).write(" (\n");
+        sbQuery.incTab();
+        for (ColumnMapping mapping : columnMappings) {
+            sbQuery.write(mapping.columnName).write(", ");
+        }
+        sbQuery.shrinkLength(2);
+        sbQuery.decTab();
+        sbQuery.write("\n) SELECT \n");
+        sbQuery.incTab();
+        for (ColumnMapping mapping : columnMappings) {
+            sbQuery.write("_DATA.").write(mapping.columnName).write(", ");
+        }
+        sbQuery.shrinkLength(2);
+        sbQuery.decTab();
+        sbQuery.write("\nFROM _DATA\n");
+        sbQuery.write("ON CONFLICT (");
+        for (String col : rootSchema.getPrimaryKeys()) {
+            sbQuery.write(col).write(", ");
+        }
+        sbQuery.shrinkLength(2);
+        sbQuery.replaceTrailingComma(")\nDO UPDATE SET\n");
+        for (ColumnMapping mapping : columnMappings) {
+            if (mapping.columnName.equals("id")) continue;
+            String value = mapping.columnConfig == null ? "EXCLUDED." + mapping.columnName :
+                    mapping.columnConfig.writeTransform().replaceAll("\\?", "_DATA." + mapping.columnName);
+            value = value.replaceAll("@", "t_0");
+            sbQuery.write(mapping.columnName).write(" = ").write(value).write(",\n");
+        }
+        sbQuery.shrinkLength(2);
+        sbQuery.decTab();
+        sbQuery.decTab();
+        sbQuery.write("\n)\nDELETE FROM hql_demo.bookstore.book_order t_0\n");
+        sbQuery.incTab();
+        sbQuery.write("WHERE NOT EXISTS (\n");
+        sbQuery.incTab();
+        sbQuery.write("SELECT 1\n");
+        sbQuery.write("FROM _DATA\n");
+        sbQuery.write("WHERE ");
+        sbQuery.incTab();
+        for (String col : rootSchema.getPrimaryKeys()) {
+            sbQuery.write("t_0.").write(col).write(" = _DATA.").write(col).write("\n AND ");
+        }
+        sbQuery.decTab();
+        sbQuery.shrinkLength(5);
+        sbQuery.decTab().write("\n)");
+        String joinOn = join.getJoinCriteria();
+        joinOn = joinOn.replaceAll("#", "t_0");
+        joinOn = joinOn.replaceAll("@\\.(\\w+)", "#{parent.$1}");
+        sbQuery.write("AND ").write(joinOn);
+
+        sbQuery.decTab();
+        sbQuery.write(";\nselect * from ").write(rootSchema.getTableName());
+        sbQuery.write("\nwhere ").write(joinOn);
+        return sbQuery.toString();
+    }
+
+    static String s2 = """
+    WITH _data(customer_id, book_id) AS (
+        SELECT NULL::bigint, NULL::bigint
+        UNION ALL
+        SELECT NULL::bigint, NULL::bigint
+    ),
+    upserted AS (
+        INSERT INTO hql_demo.bookstore.book_order (customer_id, book_id)
+        SELECT d.customer_id, d.book_id
+        FROM _data d
+        WHERE d.customer_id IS NOT NULL
+          AND d.book_id IS NOT NULL
+        ON CONFLICT (customer_id, book_id)
+        DO UPDATE SET
+            customer_id = EXCLUDED.customer_id,
+            book_id     = EXCLUDED.book_id
+        RETURNING customer_id, book_id
+    )
+    DELETE FROM hql_demo.bookstore.book_order t
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM _data d
+        WHERE d.customer_id = t.customer_id
+          AND d.book_id     = t.book_id
+    )
+    AND t.book_id = 3003
+    );
+    """;
 }

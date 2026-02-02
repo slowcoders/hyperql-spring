@@ -51,7 +51,7 @@
     -->
 
     <!-- log4jdbc 옵션 설정 -->
-    <logger name="jdbc" level="OFF" additivity="false">
+    <logger name="jdbc" level="DEBUG" additivity="false">
         <appender-ref ref="STDOUT" />
     </logger>
 
@@ -61,7 +61,7 @@
     </logger>
 
     <!-- SQL문만을 로그로 남기며, PreparedStatement일 경우 관련된 argument 값으로 대체된 SQL문 출력 -->
-    <logger name="jdbc.sqlonly" level="OFF" additivity="false">
+    <logger name="jdbc.sqlonly" level="DEBUG" additivity="false">
         <appender-ref ref="STDOUT" />
     </logger>
 

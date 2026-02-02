@@ -47,6 +47,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 
     implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.3'
+    implementation 'org.mybatis:mybatis-typehandlers-jsr310:1.0.2'
 
     /*--------------------------------------------*/
     /** select hibernate-type for JPA orm mapping */

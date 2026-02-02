@@ -39,4 +39,8 @@ public abstract class HModel {
     public List<String> getPrimaryKeys() {
         return null;
     }
+
+    public String getColumnType(String columnName) {
+        throw new UnsupportedOperationException();
+    }
 }

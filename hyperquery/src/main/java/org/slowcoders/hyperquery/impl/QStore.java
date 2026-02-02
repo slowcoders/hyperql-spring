@@ -139,16 +139,17 @@ public class QStore<T> implements ViewResolver, JdbcConnector {
     public <E extends QEntity<E>> List<E> updateCascadedEntities(Object parentEntityId, QJoin join, List<E> subEntities) {
         HSchema schema = join.getTargetRelation(this).loadSchema(this);
         SqlBuilder gen = new SqlBuilder(schema, this);
-        String query = gen.buildUpdateCascaded(parentEntityId, join, subEntities);
+        String query = gen.buildUpdateCascaded2(parentEntityId, join, subEntities);
 
         String id = registerMapper(null, this.schema.getEntityType());
 
 
-        QRecord._sql.set(query);
-        QRecord._session.set(getCurrentSessionInfo());
+        HFilter._sql.set(query);
+        HFilter._session.set(getCurrentSessionInfo());
 
         try {
             KVEntity param = KVEntity.of("data", subEntities);
+            param.put("__sql__", query);
             param.put("parent", KVEntity.of("id", parentEntityId));
             List<E> res = sqlSessionTemplate.selectList(id, param);
             return res;

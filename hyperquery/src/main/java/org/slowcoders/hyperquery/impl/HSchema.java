@@ -209,6 +209,15 @@ public class HSchema extends HModel {
         return joins.get(join);
     }
 
+    public String getColumnType(String columnName) {
+        for (JdbcColumn col : jdbcColumns) {
+            if (columnName.equals(col.getPhysicalName())) {
+                return col.getColumnTypeName();
+            }
+        }
+        throw new RuntimeException("column not found: " + columnName);
+    }
+
     public String getColumnExpr(Field f) {
         String columnExpr = Helper.getColumnName(f);
         if (columnExpr != null) return columnExpr;
@@ -226,7 +235,7 @@ public class HSchema extends HModel {
         if (join != null) {
             return "@" + name;
         }
-        return name;
+        return null;
     }
 
     static class Helper implements QEntity<Helper> {
