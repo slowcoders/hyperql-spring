@@ -158,6 +158,16 @@ public class SourceWriter<Self extends SourceWriter<Self>> {
         return (Self)this;
     }
 
+    public Self trim() {
+        int len = sb.length();
+        for (; len > 0; len --) {
+            char ch = sb.charAt(len - 1);
+            if (ch > ' ') break;
+        }
+        sb.setLength(len);
+        return (Self)this;
+    }
+
     public String reset() {
         String s = sb.toString();
         sb.setLength(0);

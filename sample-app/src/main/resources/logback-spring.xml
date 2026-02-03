@@ -61,12 +61,12 @@
     </logger>
 
     <!-- SQL문만을 로그로 남기며, PreparedStatement일 경우 관련된 argument 값으로 대체된 SQL문 출력 -->
-    <logger name="jdbc.sqlonly" level="DEBUG" additivity="false">
+    <logger name="jdbc.sqlonly" level="INFO" additivity="false">
         <appender-ref ref="STDOUT" />
     </logger>
 
     <!-- SQL문과 해당 SQL을 실행시키는데 수행된 시간 정보(milliseconds)를 포함하여 출력. -->
-    <logger name="jdbc.sqltiming" level="INFO" additivity="false">
+    <logger name="jdbc.sqltiming" level="OFF" additivity="false">
         <appender-ref ref="STDOUT" />
     </logger>
 

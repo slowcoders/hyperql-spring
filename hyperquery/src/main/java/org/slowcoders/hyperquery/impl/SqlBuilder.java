@@ -451,7 +451,6 @@ public class SqlBuilder extends ViewNode {
         if (subEntities.isEmpty()) {
             sbQuery.write("select * from ").write(rootSchema.getTableName()).write(" where false");
         } else {
-            sbQuery.incTab();
             sbQuery.write("select ");
             sbQuery.incTab();
             for (ColumnMapping mapping : columnMappings) {
@@ -472,7 +471,6 @@ public class SqlBuilder extends ViewNode {
             }
             sbQuery.decTab();
         }
-        sbQuery.decTab();
         sbQuery.decTab();
         sbQuery.write("\n), _UPSERT as (\n");
         sbQuery.incTab();
@@ -496,7 +494,9 @@ public class SqlBuilder extends ViewNode {
             sbQuery.write(col).write(", ");
         }
         sbQuery.shrinkLength(2);
+        sbQuery.incTab();
         sbQuery.replaceTrailingComma(")\nDO UPDATE SET\n");
+        sbQuery.incTab();
         for (ColumnMapping mapping : columnMappings) {
             if (mapping.columnName.equals("id")) continue;
             String value = mapping.columnConfig == null ? "EXCLUDED." + mapping.columnName :
@@ -507,28 +507,34 @@ public class SqlBuilder extends ViewNode {
         sbQuery.shrinkLength(2);
         sbQuery.decTab();
         sbQuery.decTab();
-        sbQuery.write("\n)\nDELETE FROM hql_demo.bookstore.book_order t_0\n");
-        sbQuery.incTab();
-        sbQuery.write("WHERE NOT EXISTS (\n");
-        sbQuery.incTab();
-        sbQuery.write("SELECT 1\n");
-        sbQuery.write("FROM _DATA\n");
-        sbQuery.write("WHERE ");
-        sbQuery.incTab();
-        for (String col : rootSchema.getPrimaryKeys()) {
-            sbQuery.write("t_0.").write(col).write(" = _DATA.").write(col).write("\n AND ");
-        }
+        sbQuery.write("\nRETURNING *");
         sbQuery.decTab();
-        sbQuery.shrinkLength(5);
-        sbQuery.decTab().write("\n)");
+        sbQuery.write("\n), _DELETE as (");
+        sbQuery.incTab();
+        sbQuery.write("\nDELETE FROM hql_demo.bookstore.book_order t_0");
+        sbQuery.write("\nWHERE ");
         String joinOn = join.getJoinCriteria();
         joinOn = joinOn.replaceAll("#", "t_0");
         joinOn = joinOn.replaceAll("@\\.(\\w+)", "#{parent.$1}");
-        sbQuery.write("AND ").write(joinOn);
+        sbQuery.write(joinOn);
 
+        sbQuery.incTab();
+        sbQuery.write("\nAND NOT EXISTS (\n");
+        sbQuery.incTab();
+        sbQuery.write("SELECT 1\n");
+        sbQuery.write("FROM _UPSERT\n");
+        sbQuery.write("WHERE ");
+        sbQuery.incTab();
+        for (String col : rootSchema.getPrimaryKeys()) {
+            sbQuery.write("t_0.").write(col).write(" = _UPSERT.").write(col).write("\n AND ");
+        }
         sbQuery.decTab();
-        sbQuery.write(";\nselect * from ").write(rootSchema.getTableName());
-        sbQuery.write("\nwhere ").write(joinOn);
+        sbQuery.shrinkLength(6).trim();
+        sbQuery.decTab().write("\n)");
+        sbQuery.decTab();
+        sbQuery.decTab();
+        sbQuery.write("\n)");
+        sbQuery.write("\nselect * from _UPSERT");
         return sbQuery.toString();
     }
 

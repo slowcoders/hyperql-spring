@@ -176,7 +176,7 @@ public abstract class JdbcSchemaLoader {
     public ArrayList<JdbcColumn> getColumns(Connection conn, Map<String, String> comments, TablePath tablePath, List<String> primaryKeys) throws SQLException {
         //HashMap<String, JqlIndex> indexes = getUniqueConstraints(conn, dbSchema, tableName);
         ArrayList<JdbcColumn> columns = new ArrayList<>();
-        String sql = "select * from " + tablePath.getQualifiedName() + " " +" limit 1";
+        String sql = "select * from " + tablePath.getQualifiedName() + " where false";
         ResultSet rs = conn.createStatement().executeQuery(sql);
         ResultSetMetaData md = rs.getMetaData();
         int cntColumn = md.getColumnCount();
