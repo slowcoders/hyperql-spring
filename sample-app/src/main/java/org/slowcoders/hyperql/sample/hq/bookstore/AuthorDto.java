@@ -15,13 +15,13 @@ public class AuthorDto implements QRecord<Author> {
 
     private String name;
 
-    private List<Book> books;
+    private List<Book> book_;
 
-    private int bookCount;
-
-    private int salesAmount;
-
-    private int bookPriceAvr;
+//    private int bookCount;
+//
+//    private int salesAmount;
+//
+//    private int bookPriceAvr;
 
 //    @QColumn("attr2")
 //    private int attr2;

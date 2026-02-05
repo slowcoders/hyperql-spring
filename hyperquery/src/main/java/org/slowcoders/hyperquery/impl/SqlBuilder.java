@@ -4,7 +4,6 @@ import org.apache.ibatis.parsing.XNode;
 import org.apache.ibatis.parsing.XPathParser;
 import org.slowcoders.hyperquery.core.*;
 import org.slowcoders.hyperquery.util.SqlWriter;
-import org.springframework.data.annotation.Transient;
 import org.w3c.dom.Node;
 
 import java.lang.reflect.Field;
@@ -13,6 +12,7 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 public class SqlBuilder extends ViewNode {
+    static final String ROOT_ALIAS = "t_";
     private final HModel rootSchema;
     private final ViewResolver viewResolver;
     private ViewNode currView = this;
@@ -40,7 +40,7 @@ public class SqlBuilder extends ViewNode {
     public SqlBuilder(HModel schema, ViewResolver viewResolver ) {
         this.rootSchema = schema;
         this.viewResolver = viewResolver;
-        this.currNode = new JoinNode(rootSchema, "t_0");
+        this.currNode = new JoinNode(rootSchema, ROOT_ALIAS);
         this.xpathParser = new XPathParser(emptyXml);
         this.rootSqlNode = xpathParser.evalNode("/sql");
         this.rootNode = rootSqlNode.getNode();
@@ -57,10 +57,10 @@ public class SqlBuilder extends ViewNode {
 
         String where = criteria.toString();
 
-        genTableView("t_0", currNode);
+        genTableView(ROOT_ALIAS, currNode);
         genSelections(columnMappings);
         String baseTable = currNode.views.isEmpty() ? rootSchema.getTableName() : "";
-        sbQuery.write("from ").write(baseTable).write(" t_0").write('\n');
+        sbQuery.write("from ").write(baseTable).write(" ").write(ROOT_ALIAS).write('\n');
         genJoin(currView.joins);
 
         boolean needMapper = rootNode.hasChildNodes();
@@ -89,7 +89,8 @@ public class SqlBuilder extends ViewNode {
 
 
     JoinNode pushNamespace(String alias) {
-        String aliasQualifier = currNode.aliasQualifier + alias.replaceAll("@", "\\$");
+        String aliasQualifier = currNode.aliasQualifier == ROOT_ALIAS ? alias.substring(alias.indexOf('@') + 1) :
+                currNode.aliasQualifier + alias.replaceAll("@", "\\$");
         JoinNode node = currView.getJoin(aliasQualifier);
         if (node == null) {
             QJoin join = viewResolver.getJoin(currNode.getModel(), alias);
@@ -116,16 +117,16 @@ public class SqlBuilder extends ViewNode {
         T handleIdentifier(HModel model, String name);
     }
 
-    String resolveLambda(String path, List<String> callArgs) {
+    String resolveLambda(String path, List<String> args) {
         return this.resolveQualifiedAlias(path, (model, name) -> {
-            String expr = model.getLambda(name).inflateStatement(this, callArgs);
+            String expr = model.getLambda(name).inflateStatement(this, args);
             return expr;
         });
     }
 
 
-    public String resolveProperty(String path) {
-        return this.resolveQualifiedAlias(path, (model, name) -> {
+    public String resolveProperty(String qualifiedName) {
+        return this.resolveQualifiedAlias(qualifiedName, (model, name) -> {
             QAttribute attr = model.getAttribute(name);
             if (attr != null) {
                 ViewNode oldView = currView;
@@ -329,13 +330,13 @@ public class SqlBuilder extends ViewNode {
         sbQuery.decTab();
         sbQuery.write("\n), _NEW as (\n");
         sbQuery.incTab();
-        sbQuery.write("UPDATE ").write(rootSchema.getTableName()).write(" t_0 SET\n");
+        sbQuery.write("UPDATE ").write(rootSchema.getTableName()).write(" ").write(ROOT_ALIAS).write(" SET\n");
         sbQuery.incTab();
         for (ColumnMapping mapping : columnMappings) {
             if (mapping.columnName.equals("id")) continue;
             String value = mapping.columnConfig == null ? "_DATA." + mapping.columnName :
                     mapping.columnConfig.writeTransform().replaceAll("\\?", "_DATA." + mapping.columnName);
-            value = value.replaceAll("@", "t_0");
+            value = value.replaceAll("@", ROOT_ALIAS);
             sbQuery.write(mapping.columnName).write(" = ").write(value).write(",\n");
         }
         sbQuery.shrinkLength(2);
@@ -345,7 +346,7 @@ public class SqlBuilder extends ViewNode {
         sbQuery.incTab();
         for (ColumnMapping mapping : columnMappings) {
             if (mapping.columnName.equals("id")) {
-                sbQuery.write("_DATA.").write(mapping.columnName).write(" = ").write("t_0.").write(mapping.columnName).write("\n AND");
+                sbQuery.write("_DATA.").write(mapping.columnName).write(" = ").write(ROOT_ALIAS).write(".").write(mapping.columnName).write("\n AND");
             }
         }
         sbQuery.decTab();
@@ -388,11 +389,11 @@ public class SqlBuilder extends ViewNode {
         sbQuery.decTab();
         sbQuery.decTab();
         sbQuery.write("\n)");
-        sbQuery.write("\nMERGE INTO ").write(rootSchema.getTableName()).write(" as t_0\n");
+        sbQuery.write("\nMERGE INTO ").write(rootSchema.getTableName()).write(" as ").write(ROOT_ALIAS).write("\n");
         sbQuery.write("USING _DATA\n");
         sbQuery.write("ON ");
         for (String pk : rootSchema.getPrimaryKeys()) {
-            sbQuery.write("t_0.").write(pk).write(" = _DATA.").write(pk).write(" AND ");
+            sbQuery.write(ROOT_ALIAS).write(".").write(pk).write(" = _DATA.").write(pk).write(" AND ");
         }
 //        sbQuery.write(join.getJoinCriteria());
         sbQuery.shrinkLength(5);
@@ -405,7 +406,7 @@ public class SqlBuilder extends ViewNode {
             if (mapping.columnName.equals("id")) continue;
             String value = mapping.columnConfig == null ? "_DATA." + mapping.columnName :
                     mapping.columnConfig.writeTransform().replaceAll("\\?", "_DATA." + mapping.columnName);
-            value = value.replaceAll("@", "t_0");
+            value = value.replaceAll("@", ROOT_ALIAS);
             sbQuery.write(mapping.columnName).write(" = ").write(value).write(",\n");
         }
         sbQuery.shrinkLength(2);
@@ -432,7 +433,7 @@ public class SqlBuilder extends ViewNode {
         sbQuery.write("SELECT 1\n");
         sbQuery.write("FROM ").write(join.getSchema().getTableName()).write(" c\n");
         String joinOn = join.getJoinCriteria();
-        joinOn = joinOn.replaceAll("#", "t_0");
+        joinOn = joinOn.replaceAll("#", ROOT_ALIAS);
         joinOn = joinOn.replaceAll("@", "c");
         sbQuery.write("WHERE ").write(joinOn);
         sbQuery.write("    AND c.id = ").write("#{parent.id}");
@@ -501,7 +502,7 @@ public class SqlBuilder extends ViewNode {
             if (mapping.columnName.equals("id")) continue;
             String value = mapping.columnConfig == null ? "EXCLUDED." + mapping.columnName :
                     mapping.columnConfig.writeTransform().replaceAll("\\?", "_DATA." + mapping.columnName);
-            value = value.replaceAll("@", "t_0");
+            value = value.replaceAll("@", ROOT_ALIAS);
             sbQuery.write(mapping.columnName).write(" = ").write(value).write(",\n");
         }
         sbQuery.shrinkLength(2);
@@ -511,10 +512,10 @@ public class SqlBuilder extends ViewNode {
         sbQuery.decTab();
         sbQuery.write("\n), _DELETE as (");
         sbQuery.incTab();
-        sbQuery.write("\nDELETE FROM hql_demo.bookstore.book_order t_0");
+        sbQuery.write("\nDELETE FROM hql_demo.bookstore.book_order ").write(ROOT_ALIAS);
         sbQuery.write("\nWHERE ");
         String joinOn = join.getJoinCriteria();
-        joinOn = joinOn.replaceAll("#", "t_0");
+        joinOn = joinOn.replaceAll("#", ROOT_ALIAS);
         joinOn = joinOn.replaceAll("@\\.(\\w+)", "#{parent.$1}");
         sbQuery.write(joinOn);
 
@@ -526,7 +527,7 @@ public class SqlBuilder extends ViewNode {
         sbQuery.write("WHERE ");
         sbQuery.incTab();
         for (String col : rootSchema.getPrimaryKeys()) {
-            sbQuery.write("t_0.").write(col).write(" = _UPSERT.").write(col).write("\n AND ");
+            sbQuery.write(ROOT_ALIAS).write(".").write(col).write(" = _UPSERT.").write(col).write("\n AND ");
         }
         sbQuery.decTab();
         sbQuery.shrinkLength(6).trim();

@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.TreeMap;
 
 class ViewNode {
+
     final HashMap<String, String> usedAttributes = new HashMap<>();
 
     final TreeMap<String, JoinNode> joins = new TreeMap<>();

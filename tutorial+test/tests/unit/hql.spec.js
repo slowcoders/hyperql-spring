@@ -65,7 +65,7 @@ describe('Hyper Query operations', () => {
         const filter = {
             "name": '강'
         }
-        const url = `${baseUrl}/authors`
+        const url = `${baseUrl}/authors/`
         const response = await axios.post(url, filter);
         console.log(response.data);
 
