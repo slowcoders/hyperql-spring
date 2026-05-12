@@ -28,8 +28,9 @@ parameter
     ;
 
 mapperParameter
-    : '#{' QualifiedIndetifier '}'
+    : '#{' PropertyName '}'
     ;
+
 
 property
     : PropertyLiteral
@@ -73,6 +74,10 @@ Alias
 
 QualifiedIndetifier
     : Identifier ('.' Identifier)*
+    ;
+
+PropertyName
+    : QualifiedIndetifier [?!]?
     ;
 
 Identifier

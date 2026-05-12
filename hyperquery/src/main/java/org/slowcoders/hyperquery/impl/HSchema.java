@@ -5,6 +5,7 @@ import org.slowcoders.hyperquery.core.*;
 import org.slowcoders.hyperquery.impl.jdbc.JdbcColumn;
 import org.slowcoders.hyperquery.impl.jdbc.JdbcSchemaLoader;
 import org.slowcoders.hyperquery.impl.jdbc.PGSchemaLoader;
+import org.slowcoders.hyperquery.util.SqlWriter;
 import org.springframework.data.annotation.Transient;
 
 import java.lang.reflect.Field;
@@ -194,6 +195,18 @@ public class HSchema extends HModel {
     @Override
     protected String getTableName() {
         return this.tableName;
+    }
+
+    public final String getCommaSeperatedPrimaryKeys() {
+        SqlWriter sbQuery = new SqlWriter();
+        for (String pk : getPrimaryKeys()) {
+            sbQuery.write(pk).write(", ");
+        }
+        sbQuery.replaceTrailingComma("");
+        return sbQuery.toString();
+    }
+    public Collection<QJoin> getCascadedJoins() {
+        return this.joins.values();
     }
 
     public QJoin getJoin(String join, JdbcConnector dbConn) {

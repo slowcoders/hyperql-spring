@@ -17,6 +17,9 @@ public class QJoin extends AliasNode {
     }
     private HModel target;
     private final boolean toUnique;
+
+    private boolean cascaded;
+
     private Class<? extends QEntity<?>> viewType;
 
     // Cross Join 은 지원하지 읺는다.
@@ -38,6 +41,15 @@ public class QJoin extends AliasNode {
     }
     public boolean isToUnique() { return toUnique; }
 
+    public final boolean isCascaded() {
+        return cascaded;
+    }
+
+    public static QJoin cascade(Class<? extends QEntity<?>> recordType, String joinOn) {
+        QJoin join = new QJoin(recordType, joinOn, false);
+        join.cascaded = true;
+        return join;
+    }
     public HModel getTargetRelation(JdbcConnector dbConn) {
         if (target == null) {
             target = HSchema.loadSchema(viewType, false, dbConn);

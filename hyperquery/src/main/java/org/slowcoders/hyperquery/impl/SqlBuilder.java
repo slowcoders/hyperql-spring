@@ -52,7 +52,7 @@ public class SqlBuilder extends ViewNode {
 
     public <R extends QRecord<E>, E extends QEntity<E>> HQuery buildSelect(Class<R> resultType, QFilter<E> filter) {
 
-        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, resultType, "");
+        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, resultType, "", false);
         HCriteria criteria = HCriteria.parse(this, filter, "@");
 
         String where = criteria.toString();
@@ -240,40 +240,51 @@ public class SqlBuilder extends ViewNode {
     }
 
     static Pattern ColumnNameOnly = Pattern.compile("[a-zA-Z_][a-zA-Z0-9_]*");
-    List<ColumnMapping> parseColumnMappings(HModel view, Class<?> recordType, String propertyPrefix) {
+    List<ColumnMapping> parseColumnMappings(HModel view, Class<?> recordType, String propertyPrefix, boolean includeNestedColumn) {
+        List<ColumnMapping> columnMappings = new ArrayList<>();
         try {
-            List<ColumnMapping> columnMappings = new ArrayList<>();
-            for (Field f : recordType.getDeclaredFields()) {
-                if (Modifier.isStatic(f.getModifiers()) ||
-                        HSchema.Helper.isTransient(f)) continue;
-
-                String columnExpr = view.getColumnExpr(f);
-                if (columnExpr == null) {
-                    throw new RuntimeException("Cannot find column expression for " + f.getName());
-                }
-                Class<? extends QRecord<?>> elementType = HSchema.Helper.getElementType(f);
-                if (QRecord.class.isAssignableFrom(elementType)) {
-                    JoinNode node = pushNamespace(columnExpr);
-                    HSchema subSchema = viewResolver.loadSchema(elementType, false);
-                    parseColumnMappings(subSchema, elementType, propertyPrefix + f.getName() + '.');
-                    setNamespace(node);
-                } else {
-                    if (ColumnNameOnly.matcher(columnExpr).matches()) {
-                        columnExpr = resolveProperty("@." + columnExpr);
-                    } else {
-                        columnExpr = PredicateTranslator.translate(this, f.getName(), columnExpr);
-                    }
-                    columnMappings.add(new ColumnMapping(columnExpr, propertyPrefix, f));
-                }
-            }
-            return columnMappings;
+            parseColumnMappings(view, recordType, propertyPrefix, columnMappings, includeNestedColumn);
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+        return columnMappings;
+    }
+
+    void parseColumnMappings(HModel view, Class<?> recordType, String propertyPrefix, List<ColumnMapping> columnMappings, boolean includeNestedColumn) {
+        for (Field f : recordType.getDeclaredFields()) {
+            if (Modifier.isStatic(f.getModifiers()) ||
+                    HSchema.Helper.isTransient(f)) continue;
+
+            String columnExpr = view.getColumnExpr(f);
+            if (columnExpr == null) {
+                String columnExpr2 = view.getColumnExpr(f);
+                throw new RuntimeException("Cannot find column expression for " + f.getName());
+            }
+            Class<? extends QRecord<?>> elementType = HSchema.Helper.getElementType(f);
+            if (QRecord.class.isAssignableFrom(elementType)) {
+                if (!includeNestedColumn) {
+                    continue;//throw new RuntimeException("Cannot include nested column for " + f.getName());
+                }
+                JoinNode node = pushNamespace(columnExpr);
+                HSchema subSchema = viewResolver.loadSchema(elementType, false);
+                parseColumnMappings(subSchema, elementType, propertyPrefix + f.getName() + '.', columnMappings, includeNestedColumn);
+                setNamespace(node);
+            } else {
+                if (ColumnNameOnly.matcher(columnExpr).matches()) {
+                    columnExpr = resolveProperty("@." + columnExpr);
+                } else {
+                    columnExpr = PredicateTranslator.translate(this, f.getName(), columnExpr);
+                    if (!includeNestedColumn && columnExpr.indexOf('.', 2) > 0) {
+                        continue; //throw new RuntimeException("Cannot include nested column for " + f.getName());
+                    }
+                }
+                columnMappings.add(new ColumnMapping(columnExpr, propertyPrefix, f));
+            }
         }
     }
 
     public String buildInsert(QUniqueRecord<?> entity, boolean updateOnConflict) {
-        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, entity.getClass(), "");
+        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, entity.getClass(), "", false);
         sbQuery.write("INSERT INTO ").write(rootSchema.getTableName()).write(" (");
         for (ColumnMapping mapping : columnMappings) {
             sbQuery.write(mapping.columnName).write(", ");
@@ -304,7 +315,7 @@ public class SqlBuilder extends ViewNode {
     }
 
     public String buildUpdate(QUniqueRecord<?> entity) {
-        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, entity.getClass(), "");
+        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, entity.getClass(), "", false);
         sbQuery.write("WITH _DATA as (\n");
         sbQuery.incTab();
         sbQuery.write("select ");
@@ -359,7 +370,7 @@ public class SqlBuilder extends ViewNode {
     }
 
     public <E extends QEntity<E>> String buildUpdateCascaded(Object baseId, QJoin join, List<E> subEntities) {
-        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, rootSchema.getEntityType(), "");
+        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, rootSchema.getEntityType(), "", false);
         sbQuery.write("WITH _DATA as (\n");
         sbQuery.incTab();
         if (subEntities.isEmpty()) {
@@ -445,7 +456,7 @@ public class SqlBuilder extends ViewNode {
         return sbQuery.toString();
     }
 
-    public <E extends QEntity<E>> String buildUpdateCascaded2(Object baseId, QJoin join, List<E> subEntities) {
+    public <E extends QEntity<E>> String buildUpdateCascaded2(Object baseId, QJoin join, Collection<E> subEntities) {
         List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, rootSchema.getEntityType(), "");
         sbQuery.write("WITH _DATA as (\n");
         sbQuery.incTab();

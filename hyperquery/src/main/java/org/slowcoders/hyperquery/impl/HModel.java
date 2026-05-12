@@ -40,6 +40,14 @@ public abstract class HModel {
         return null;
     }
 
+    public List<String> getNotEmptyPrimaryKeys() {
+        List<String> keys = getPrimaryKeys();
+        if (keys.isEmpty()) {
+            throw new IllegalStateException("Primary key is not defined.");
+        }
+        return keys;
+    }
+
     public String getColumnType(String columnName) {
         throw new UnsupportedOperationException();
     }

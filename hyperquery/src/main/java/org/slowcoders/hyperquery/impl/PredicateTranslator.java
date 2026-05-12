@@ -11,24 +11,30 @@ import org.slowcoders.hql.core.antlr.PredicateLexer;
 import org.slowcoders.hql.core.antlr.PredicateBaseVisitor;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 class PredicateTranslator extends PredicateBaseVisitor<String> {
     StringBuilder sb = new StringBuilder();
     SqlBuilder relation;
-    String paramName;
+    List<String> paramNames;
 
-    PredicateTranslator(SqlBuilder relation, String paramName) {
+    PredicateTranslator(SqlBuilder relation, List<String> paramNames) {
         this.relation = relation;
-        this.paramName = paramName;
+        this.paramNames = paramNames;
     }
 
     public static String translate(SqlBuilder sqlBuilder, String paramName, String predicate) {
+        return translate(sqlBuilder, Collections.singletonList(paramName), predicate);
+    }
+
+    public static String translate(SqlBuilder sqlBuilder, List<String> paramNames, String predicate) {
+
         PredicateLexer lexer = new PredicateLexer(CharStreams.fromString(predicate));
         PredicateParser parser = new PredicateParser(new CommonTokenStream(lexer));
         ParseTree tree = parser.parse();
 
-        PredicateTranslator rewriter = new PredicateTranslator(sqlBuilder, paramName);
+        PredicateTranslator rewriter = new PredicateTranslator(sqlBuilder, paramNames);
         rewriter.sb.append('(');
         tree.getChild(0).accept(rewriter);
         rewriter.sb.append(')');
@@ -65,7 +71,7 @@ class PredicateTranslator extends PredicateBaseVisitor<String> {
     @Override
     public String visitParameter(PredicateParser.ParameterContext ctx) {
         String param = ctx.getText();
-        sb.append("#{").append(paramName);
+        sb.append("#{").append(paramNames.get(0));
         if (param.length() > 1) {
             sb.append('.');
             sb.append(param.substring(2));
@@ -74,9 +80,20 @@ class PredicateTranslator extends PredicateBaseVisitor<String> {
         return param;
     }
 
+    @Override public String visitMapperParameter(PredicateParser.MapperParameterContext ctx) {
+        String param = ctx.getText();
+        String name = param.substring(2, param.length() - 1).trim();
+        paramNames.add(name);
+        switch (name.charAt(name.length() - 1)) {
+            case '!': case '?':
+                param = "#{" + name.substring(0, name.length() - 1) + "}";
+        }
+        sb.append(param);
+        return param;
+    }
     public String visitJoinTargetAttr(PredicateParser.JoinTargetAttrContext ctx) {
         String property = ctx.getText();
-        String v = relation.resolveProperty(this.paramName + property.substring(1));
+        String v = relation.resolveProperty(this.paramNames.get(0) + property.substring(1));
         sb.append(v);
         return "";
     }

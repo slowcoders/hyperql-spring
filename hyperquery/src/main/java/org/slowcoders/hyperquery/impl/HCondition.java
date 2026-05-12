@@ -4,7 +4,7 @@ import org.apache.ibatis.reflection.MetaObject;
 import org.slowcoders.hyperquery.core.QFilter;
 import org.slowcoders.hyperquery.util.SqlWriter;
 
-public class HCondition {
+public class HCondition<T> {
     private final QFilter.Validator condition;
     private final HCondition[] conditions;
     private final String predication;

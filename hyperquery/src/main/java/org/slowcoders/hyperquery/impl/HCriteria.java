@@ -50,22 +50,34 @@ public class HCriteria extends ArrayList<String> {
                 Object value = f.get(filter);
                 if (ObjectUtils.isEmpty(value)) continue;
 
+                boolean isNestedFilter = QFilter.class.isAssignableFrom(f.getType());
+                String predicaton;
                 if (predicate != null) {
-                    if (QFilter.class.isAssignableFrom(f.getType())) {
-                        JoinNode node = generator.pushNamespace(predicate.value());
-                        String expr = parse(generator, (QFilter<?>) value, predicate.value()).toString();
-                        generator.setNamespace(node);
-                        criteria.add(expr);
-                    } else {
-                        String expr = PredicateTranslator.translate(generator, f.getName(), predicate.value());
-                        if (!isIterable(f)) {
-                            expr = expr.replaceAll("\\?", "#{" + f.getName() + "}");
-                        } else {
-                            // @Condition("(@.room_type_code, 5) in (?{?, ?.hash})")
-                            expr = parseArrayCondition(expr, f, value);
-                        }
-                        criteria.add(expr);
+                    predicaton = predicate.value();
+                } else if (isNestedFilter) {
+                    predicaton = "@." + f.getName();
+                } else {
+                    String column = generator.getCurrentModel().getColumnExpr(f);
+                    if (column == null) {
+                        continue;
                     }
+                    predicaton = "@." + column + " = ?";
+                }
+
+                if (isNestedFilter) {
+                    JoinNode node = generator.pushNamespace(predicaton);
+                    String expr = parse(generator, (QFilter<?>) value, predicaton).toString();
+                    generator.setNamespace(node);
+                    criteria.add(expr);
+                } else {
+                    String expr = PredicateTranslator.translate(generator, f.getName(), predicaton);
+                    if (!isIterable(f)) {
+                        expr = expr.replaceAll("\\?", "#{" + f.getName() + "}");
+                    } else {
+                        // @Condition("(@.room_type_code, 5) in (?{?, ?.hash})")
+                        expr = parseArrayCondition(expr, f, value);
+                    }
+                    criteria.add(expr);
                 }
             }
         } catch (Exception e) {
@@ -122,7 +134,7 @@ public class HCriteria extends ArrayList<String> {
                 || Collection.class.isAssignableFrom(type);
     }
 
-    public static class Predicate extends HCondition {
+    public static class Predicate<T> extends HCondition<T> {
         private final String propertyName;
         public Predicate(String propertyName, QFilter.Validator validator, String predication, HCondition[] conditions) {
             super(validator, predication, conditions);
@@ -134,10 +146,10 @@ public class HCriteria extends ArrayList<String> {
         }
     }
 
-    public static class PredicateSet extends HCondition {
+    public static class PredicateSet<T> extends HCondition<T> {
         private final QFilter.LogicalOp op;
 
-        public PredicateSet(QFilter.LogicalOp op, QFilter.Validator validator, HCondition[] conditions) {
+        public PredicateSet(QFilter.LogicalOp op, QFilter.Validator<T> validator, HCondition<T>[] conditions) {
             super(validator, null, conditions);
             this.op = op;
         }

@@ -10,6 +10,7 @@ import org.apache.ibatis.session.Configuration;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.slowcoders.hyperquery.core.*;
 import org.slowcoders.hyperquery.util.KVEntity;
+import org.slowcoders.hyperquery.util.SqlWriter;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.datasource.DataSourceUtils;
@@ -21,19 +22,19 @@ import org.w3c.dom.NodeList;
 
 import javax.sql.DataSource;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.sql.Connection;
 import java.util.*;
 
-public class QStore<T> implements ViewResolver, JdbcConnector {
+public class QStore implements ViewResolver, JdbcConnector {
     private final Configuration configuration;
     private final SqlSessionTemplate sqlSessionTemplate;
     private final Class<? extends QRepository> repositoryType;
-    private final HSchema schema;
 
     public QStore(Configuration configuration, SqlSessionTemplate sqlSessionTemplate, QRepository repository) {
         this.configuration = configuration;
         this.sqlSessionTemplate = sqlSessionTemplate;
-        this.schema = HSchema.loadSchema(this.getClass(), true, this);
+//        this.schema = HSchema.loadSchema(this.getClass(), true, this);
         Class<?> repositoryType = null;
         for (Class<?> iface : ClassUtils.getUserClass(repository).getInterfaces()) {
             if (QRepository.class.isAssignableFrom(iface)) {
@@ -136,7 +137,90 @@ public class QStore<T> implements ViewResolver, JdbcConnector {
         }
     }
 
-    public <E extends QEntity<E>> List<E> updateCascadedEntities(Object parentEntityId, QJoin join, List<E> subEntities) {
+    private void deleteNested(HSchema schema, String pkFilter, SqlWriter sbQuery, int depth) {
+        sbQuery.write(depth == 0 ? "with " : ", ");
+        String cte_to_delete = "\"TO_DELETE." + schema.getTableName() + "\"";
+        sbQuery.write(cte_to_delete).writeln(" as (");
+        sbQuery.incTab().write(pkFilter);
+        sbQuery.decTab().write("\n)\n");
+
+        for (QJoin join : schema.getCascadedJoins()) {
+            if (!join.isCascaded()) continue;
+            HSchema targetSchema = loadSchema( join.getTargetRelation(this).getEntityType(), true);
+            String joinOn = join.getEncodedExpr();
+            joinOn = joinOn.replaceAll("#", "t_0");
+            joinOn = joinOn.replaceAll("@", "c");
+            String joinFilter = "select " + targetSchema.getCommaSeperatedPrimaryKeys() + "\nfrom " + targetSchema.getTableName() + " t_0\n"
+                    + "inner join " + cte_to_delete + " c\n on (" + joinOn + ")" ;
+            deleteNested(targetSchema, joinFilter, sbQuery, depth + 1);
+        }
+        if (depth > 0) {
+            sbQuery.write(", do_delete_" + depth + " as (\n");
+            sbQuery.incTab();
+        }
+        sbQuery.write("delete from ").writeln(schema.getTableName())
+                .write("where (").write(schema.getCommaSeperatedPrimaryKeys()).write(") in (\n")
+                .incTab().write("select ").write(schema.getCommaSeperatedPrimaryKeys())
+                .write("\nfrom ").write(cte_to_delete)
+                .decTab().write("\n)\n");
+        if (depth > 0) {
+            sbQuery.decTab();
+            sbQuery.write(")\n");
+        }
+    }
+
+    public <E extends QEntity<E>> int deleteNested(QFilter<E> filter) {
+        HSchema schema = loadSchema(filter.getClass(), false);
+        SqlBuilder gen = new SqlBuilder(schema, this);
+        HQuery hq = gen.buildSelect(null, filter);
+        SqlWriter sbQuery = new SqlWriter();
+
+
+        deleteNested(schema, hq.query, sbQuery, 0);
+
+        String id = repositoryType.getName() + ".__deleteNested__";
+
+        QRecord._sql.set(sbQuery.toString());
+        QRecord._session.set(getCurrentSessionInfo());
+
+        try {
+            int res = sqlSessionTemplate.delete(id, filter);
+            return res;
+        } catch (RuntimeException e) {
+            System.out.println("Execution failed\n" + hq.query);
+            throw e;
+        }
+
+    }
+
+    public <E extends QEntity<E>> int updateNested(QUniqueRecord<E> entity) {
+        update(entity);
+
+        HSchema schema = loadSchema(entity.getClass(), false);
+        try {
+            for (Field f : entity.getClass().getDeclaredFields()) {
+                if (Modifier.isStatic(f.getModifiers()) ||
+                        HSchema.Helper.isTransient(f)) continue;
+
+                Class<? extends QRecord<?>> elementType = HSchema.Helper.getElementType(f);
+                if (QRecord.class.isAssignableFrom(elementType) && Collection.class.isAssignableFrom(f.getType())) {
+                    String columnExpr = schema.getColumnExpr(f);
+                    QJoin join = schema.getJoin(columnExpr, this);
+                    if (join != null) {
+                        f.setAccessible(true);
+                        Collection<E> subEntities = (Collection<E>) f.get(entity);
+                        updateCascadedEntities(entity, join, subEntities);
+                    }
+                }
+            }
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+        return 0;
+    }
+
+
+    public <E extends QEntity<E>> List<E> updateCascadedEntities(Object parentEntityId, QJoin join, Collection<E> subEntities) {
         HSchema schema = join.getTargetRelation(this).loadSchema(this);
         SqlBuilder gen = new SqlBuilder(schema, this);
         String query = gen.buildUpdateCascaded2(parentEntityId, join, subEntities);

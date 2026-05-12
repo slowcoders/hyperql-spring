@@ -19,7 +19,10 @@ public class JoinBuilder {
     }
 
     private QJoin createJoin(HModel target, String[] joinColumns, boolean b) {
-        if (columns.length != joinColumns.length) {
+        if (joinColumns.length == 0) {
+            joinColumns = columns;
+        }
+        else if (columns.length != joinColumns.length) {
             throw new IllegalArgumentException("Invalid join columns");
         }
         String joinOn;
