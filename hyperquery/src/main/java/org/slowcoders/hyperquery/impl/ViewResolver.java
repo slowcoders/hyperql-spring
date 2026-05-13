@@ -1,5 +1,6 @@
 package org.slowcoders.hyperquery.impl;
 
+import org.apache.ibatis.reflection.MetaObject;
 import org.slowcoders.hyperquery.core.QJoin;
 import org.slowcoders.hyperquery.core.QRecord;
 
@@ -13,4 +14,6 @@ public interface ViewResolver {
     HSchema getTargetSchema(QJoin join);
 
     QJoin getJoin(HModel model, String alias);
+
+    MetaObject newMetaObject(Object obj);
 }

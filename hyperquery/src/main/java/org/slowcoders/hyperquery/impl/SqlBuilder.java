@@ -50,9 +50,14 @@ public class SqlBuilder extends ViewNode {
         return rootSchema;
     }
 
+    public final ViewResolver getViewResolver() {
+        return viewResolver;
+    }
+
     public <R extends QRecord<E>, E extends QEntity<E>> HQuery buildSelect(Class<R> resultType, QFilter<E> filter) {
 
-        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, resultType, "", false);
+        List<ColumnMapping> columnMappings = resultType == null ? null :
+                parseColumnMappings(rootSchema, resultType, "", true);
         HCriteria criteria = HCriteria.parse(this, filter, "@");
 
         String where = criteria.toString();
@@ -173,14 +178,30 @@ public class SqlBuilder extends ViewNode {
     private void genSelections(List<ColumnMapping> columnMappings) {
         sbQuery.write("SELECT ");
         sbQuery.incTab();
-        for (ColumnMapping col : columnMappings) {
-            sbQuery.write(col.qualifiedColumnName).write(" as \"").write(col.fieldName).write("\",\n");
+        if (columnMappings == null) {
+            for (String pk : rootSchema.getPrimaryKeys()) {
+                sbQuery.write(pk).write(",\n");
+            }
+        } else {
+            for (ColumnMapping col : columnMappings) {
+                sbQuery.write(col.qualifiedColumnName).write(" as \"").write(col.fieldName).write("\",\n");
+            }
         }
         sbQuery.shrinkLength(2);
         sbQuery.decTab();
         sbQuery.write('\n');
     }
 
+    private void genSelectPrimaryKeys(String tableAlias) {
+        sbQuery.write("SELECT ");
+        sbQuery.incTab();
+        for (String pk : rootSchema.getPrimaryKeys()) {
+            sbQuery.write(tableAlias).write(",").write(pk).write("\",\n");
+        }
+        sbQuery.shrinkLength(2);
+        sbQuery.decTab();
+        sbQuery.write('\n');
+    }
 
     private void genJoin(Map<String, JoinNode> joinNodes) {
         for (Map.Entry<String, JoinNode> entry : joinNodes.entrySet()) {
@@ -284,8 +305,7 @@ public class SqlBuilder extends ViewNode {
     }
 
     public String buildInsert(QUniqueRecord<?> entity, boolean updateOnConflict) {
-        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, entity.getClass(), "", false);
-        sbQuery.write("INSERT INTO ").write(rootSchema.getTableName()).write(" (");
+        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, entity.getClass(), "", true);        sbQuery.write("INSERT INTO ").write(rootSchema.getTableName()).write(" (");
         for (ColumnMapping mapping : columnMappings) {
             sbQuery.write(mapping.columnName).write(", ");
         }
@@ -370,7 +390,7 @@ public class SqlBuilder extends ViewNode {
     }
 
     public <E extends QEntity<E>> String buildUpdateCascaded(Object baseId, QJoin join, List<E> subEntities) {
-        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, rootSchema.getEntityType(), "", false);
+        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, rootSchema.getEntityType(), "", true);
         sbQuery.write("WITH _DATA as (\n");
         sbQuery.incTab();
         if (subEntities.isEmpty()) {
@@ -456,8 +476,8 @@ public class SqlBuilder extends ViewNode {
         return sbQuery.toString();
     }
 
-    public <E extends QEntity<E>> String buildUpdateCascaded2(Object baseId, QJoin join, Collection<E> subEntities) {
-        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, rootSchema.getEntityType(), "");
+    public <E extends QEntity<E>> String buildUpdateCascaded2(QJoin join, Collection<E> subEntities) {
+        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, rootSchema.getEntityType(), "", false);
         sbQuery.write("WITH _DATA as (\n");
         sbQuery.incTab();
         if (subEntities.isEmpty()) {
@@ -502,7 +522,7 @@ public class SqlBuilder extends ViewNode {
         sbQuery.decTab();
         sbQuery.write("\nFROM _DATA\n");
         sbQuery.write("ON CONFLICT (");
-        for (String col : rootSchema.getPrimaryKeys()) {
+        for (String col : rootSchema.getNotEmptyPrimaryKeys()) {
             sbQuery.write(col).write(", ");
         }
         sbQuery.shrinkLength(2);
@@ -523,30 +543,28 @@ public class SqlBuilder extends ViewNode {
         sbQuery.decTab();
         sbQuery.write("\n), _DELETE as (");
         sbQuery.incTab();
-        sbQuery.write("\nDELETE FROM hql_demo.bookstore.book_order ").write(ROOT_ALIAS);
-        sbQuery.write("\nWHERE ");
-        String joinOn = join.getJoinCriteria();
-        joinOn = joinOn.replaceAll("#", ROOT_ALIAS);
-        joinOn = joinOn.replaceAll("@\\.(\\w+)", "#{parent.$1}");
-        sbQuery.write(joinOn);
-
+        sbQuery.write("\n)\nDELETE FROM hql_demo.bookstore.book_order ").write(ROOT_ALIAS);
         sbQuery.incTab();
-        sbQuery.write("\nAND NOT EXISTS (\n");
+        sbQuery.write("WHERE NOT EXISTS (\n");
         sbQuery.incTab();
         sbQuery.write("SELECT 1\n");
-        sbQuery.write("FROM _UPSERT\n");
+        sbQuery.write("FROM _DATA\n");
         sbQuery.write("WHERE ");
         sbQuery.incTab();
         for (String col : rootSchema.getPrimaryKeys()) {
-            sbQuery.write(ROOT_ALIAS).write(".").write(col).write(" = _UPSERT.").write(col).write("\n AND ");
+            sbQuery.write("t_0.").write(col).write(" = _DATA.").write(col).write("\n AND ");
         }
         sbQuery.decTab();
-        sbQuery.shrinkLength(6).trim();
+        sbQuery.shrinkLength(5);
         sbQuery.decTab().write("\n)");
+        String joinOn = join.getJoinCriteria();
+        joinOn = joinOn.replaceAll("#", ROOT_ALIAS);
+        joinOn = joinOn.replaceAll("@\\.(\\w+)", "#{parent.$1}");
+        sbQuery.write("AND ").write(joinOn);
+
         sbQuery.decTab();
-        sbQuery.decTab();
-        sbQuery.write("\n)");
-        sbQuery.write("\nselect * from _UPSERT");
+        sbQuery.write(";\nselect * from ").write(rootSchema.getTableName());
+        sbQuery.write(" t_0\nwhere ").write(joinOn);
         return sbQuery.toString();
     }
 

@@ -14,12 +14,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-class PredicateTranslator extends PredicateBaseVisitor<String> {
+public class PredicateTranslator extends PredicateBaseVisitor<String> {
     StringBuilder sb = new StringBuilder();
     SqlBuilder relation;
     List<String> paramNames;
 
-    PredicateTranslator(SqlBuilder relation, List<String> paramNames) {
+    public PredicateTranslator(SqlBuilder relation, List<String> paramNames) {
         this.relation = relation;
         this.paramNames = paramNames;
     }

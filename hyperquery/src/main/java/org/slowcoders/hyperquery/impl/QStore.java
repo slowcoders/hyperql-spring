@@ -5,6 +5,7 @@ import org.apache.ibatis.builder.xml.XMLIncludeTransformer;
 import org.apache.ibatis.mapping.*;
 import org.apache.ibatis.parsing.GenericTokenParser;
 import org.apache.ibatis.parsing.XNode;
+import org.apache.ibatis.reflection.MetaObject;
 import org.apache.ibatis.scripting.xmltags.*;
 import org.apache.ibatis.session.Configuration;
 import org.mybatis.spring.SqlSessionTemplate;
@@ -118,6 +119,11 @@ public class QStore implements ViewResolver, JdbcConnector {
         return model.getJoin(alias, this);
     }
 
+    @Override
+    public MetaObject newMetaObject(Object obj) {
+        return configuration.newMetaObject(obj);
+    }
+
     public <E extends QEntity<E>> int update(QUniqueRecord<E> entity) {
         HSchema schema = loadSchema(entity.getClass(), false);
         SqlBuilder gen = new SqlBuilder(schema, this);
@@ -220,12 +226,12 @@ public class QStore implements ViewResolver, JdbcConnector {
     }
 
 
-    public <E extends QEntity<E>> List<E> updateCascadedEntities(Object parentEntityId, QJoin join, Collection<E> subEntities) {
+    public <E extends QEntity<E>> List<E> updateCascadedEntities(Object parentEntity, QJoin join, Collection<E> subEntities) {
         HSchema schema = join.getTargetRelation(this).loadSchema(this);
         SqlBuilder gen = new SqlBuilder(schema, this);
-        String query = gen.buildUpdateCascaded2(parentEntityId, join, subEntities);
+        String query = gen.buildUpdateCascaded2(join, subEntities);
 
-        String id = registerMapper(null, this.schema.getEntityType());
+        String id = registerMapper(null, schema.getEntityType());
 
 
         HFilter._sql.set(query);
@@ -234,7 +240,7 @@ public class QStore implements ViewResolver, JdbcConnector {
         try {
             KVEntity param = KVEntity.of("data", subEntities);
             param.put("__sql__", query);
-            param.put("parent", KVEntity.of("id", parentEntityId));
+            param.put("parent", parentEntity);
             List<E> res = sqlSessionTemplate.selectList(id, param);
             return res;
         } catch (RuntimeException e) {

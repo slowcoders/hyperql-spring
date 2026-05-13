@@ -39,6 +39,13 @@ springdoc:
       activated: false
 
 spring:
+  devtools:
+    restart:
+      enabled: true
+      additional-paths: src/main/java
+  livereload:
+    enabled: true
+
   datasource:
     url: Enter-JDBC-URL ex) jdbc:postresql://localhost/hql_demo}
     username: Enter-DB-UserName

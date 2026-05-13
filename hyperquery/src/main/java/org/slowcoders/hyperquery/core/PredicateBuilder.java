@@ -3,6 +3,7 @@ package org.slowcoders.hyperquery.core;
 import org.apache.ibatis.reflection.MetaObject;
 import org.slowcoders.hyperquery.impl.HCondition;
 import org.slowcoders.hyperquery.impl.HCriteria;
+import org.slowcoders.hyperquery.impl.PredicateTranslator;
 import org.slowcoders.hyperquery.impl.SqlBuilder;
 import org.slowcoders.hyperquery.util.SqlWriter;
 import org.springframework.util.ObjectUtils;

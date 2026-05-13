@@ -1,6 +1,7 @@
 package org.slowcoders.hyperquery.core;
 
 import org.slowcoders.hyperquery.impl.HFilter;
+import org.slowcoders.hyperquery.impl.SqlBuilder;
 
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
@@ -10,6 +11,10 @@ public class QFilter<T extends QEntity<?>> extends HFilter {
 
     public enum LogicalOp {
         AND, OR, NOT_AND, NOT_OR;
+    }
+
+    public PredicateBuilder createPredicateBuilder(SqlBuilder sqlBuilder) {
+        return null;
     }
 
     @Retention(RetentionPolicy.RUNTIME)

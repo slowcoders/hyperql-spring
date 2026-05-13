@@ -4,34 +4,18 @@ import org.apache.ibatis.reflection.MetaObject;
 import org.slowcoders.hyperquery.core.QFilter;
 import org.slowcoders.hyperquery.util.SqlWriter;
 
-public class HCondition<T> {
-    private final QFilter.Validator condition;
-    private final HCondition[] conditions;
-    private final String predication;
+public class HCondition<V> {
+    private final QFilter.Validator<V> validator;
 
-    protected HCondition(QFilter.Validator condition, String predication, HCondition[] conditions) {
-        this.condition = condition;
-        this.predication = predication;
-        this.conditions = conditions;
+    protected HCondition(QFilter.Validator<V> validator) {
+        this.validator = validator != null ? validator : (QFilter.Validator<V>) (o) -> true;
     }
 
-    protected boolean apply(MetaObject value) {
-        return condition.isValid(value.getOriginalObject());
+    public boolean isApplicable(V value) {
+        return validator.isValid(value);
     }
 
-    protected void dump(MetaObject obj, SqlWriter sw) {
-        if (apply(obj)) {
-            if (predication != null) {
-                sw.write(predication);
-            } else {
-                for (HCondition cond : conditions) {
-                    cond.dump(obj, sw);
-                }
-            }
-        }
+    public void dump(MetaObject record, SqlWriter sw) {
     }
 
-    final QFilter.Validator getApplicability() {
-        return this.condition;
-    }
 }

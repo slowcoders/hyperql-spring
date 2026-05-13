@@ -84,6 +84,10 @@ public class HCriteria extends ArrayList<String> {
             throw new RuntimeException(e);
         }
 
+//        HCondition<?> dynamicFilter = filter.createPredicateBuilder(generator).build();
+//        SqlWriter sw = new SqlWriter();
+//        dynamicFilter.dump(generator.getViewResolver().newMetaObject(filter), sw);
+//        criteria.add(sw.toString());
         return criteria;
     }
 
@@ -107,9 +111,15 @@ public class HCriteria extends ArrayList<String> {
         if (expr.length() > tupleEnd) {
             startChar = expr.charAt(tupleEnd);
             switch (startChar) {
-                case '(': endChar = ')'; break;
-                case '[': endChar = ']'; break;
-                case '{': endChar = '}'; break;
+                case '(':
+                    endChar = ')';
+                    break;
+                case '[':
+                    endChar = ']';
+                    break;
+                case '{':
+                    endChar = '}';
+                    break;
             }
             if (endChar == ' ' || (tupleEnd = expr.indexOf(endChar, tupleEnd)) == -1) {
                 throw new IllegalStateException("Invalid expression: " + expr);
@@ -135,33 +145,54 @@ public class HCriteria extends ArrayList<String> {
     }
 
     public static class Predicate<T> extends HCondition<T> {
-        private final String propertyName;
-        public Predicate(String propertyName, QFilter.Validator validator, String predication, HCondition[] conditions) {
-            super(validator, predication, conditions);
-            this.propertyName = propertyName;
+        private final String predication;
+
+        public Predicate(QFilter.Validator<T> validator, String predication) {
+            super(validator);
+            this.predication = predication;
         }
 
-        protected boolean apply(MetaObject obj) {
-            return super.getApplicability().isValid(obj.getValue(propertyName));
+        @Override
+        public void dump(MetaObject obj, SqlWriter sw) {
+            sw.write(predication);
         }
     }
 
     public static class PredicateSet<T> extends HCondition<T> {
         private final QFilter.LogicalOp op;
+        protected HCondition<T>[] conditions;
+        private boolean mustNotEmpty;
 
-        public PredicateSet(QFilter.LogicalOp op, QFilter.Validator<T> validator, HCondition<T>[] conditions) {
-            super(validator, null, conditions);
+
+        @SafeVarargs
+        public PredicateSet(QFilter.LogicalOp op, HCondition<T>... conditions) {
+            super(null);
             this.op = op;
+            this.conditions = conditions;
         }
 
+        public PredicateSet<T> mustNotEmpty() {
+            this.mustNotEmpty = true;
+            return this;
+        }
+
+
         @Override
-        protected void dump(MetaObject obj, SqlWriter sw) {
+        public void dump(MetaObject obj, SqlWriter sw) {
             sw.write('(');
             int start = sw.length();
-            super.dump(obj, sw);
+            String conjunction = ' ' + op.toString() + ' ';
+            for (HCondition cond : conditions) {
+                int len = sw.length();
+                cond.dump(obj, sw);
+                if (sw.length() != len) {
+                    sw.write('\n').write(op.toString()).write(' ');
+                }
+            }
             if (sw.length() == start) {
                 sw.shrinkLength(1);
             } else {
+                sw.shrinkLength(conjunction.length());
                 sw.write(')');
             }
         }
