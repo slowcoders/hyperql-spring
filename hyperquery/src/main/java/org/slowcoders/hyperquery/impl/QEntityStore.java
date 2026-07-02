@@ -29,8 +29,8 @@ public class QEntityStore {
                     f.setAccessible(true);
 
                     if (pk != null) {
-                        pkMappings.add(new ColumnMapping(pk.value(), f));
-                        columnMappings.add(new ColumnMapping(pk.value(), f));
+                        pkMappings.add(new ColumnMapping(pk.name(), f));
+                        columnMappings.add(new ColumnMapping(pk.name(), f));
                     }
                     else if (column != null) {
                         columnMappings.add(new ColumnMapping(column.value(), f));

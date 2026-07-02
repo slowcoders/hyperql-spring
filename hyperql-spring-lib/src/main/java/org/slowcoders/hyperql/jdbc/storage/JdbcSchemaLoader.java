@@ -96,7 +96,7 @@ public abstract class JdbcSchemaLoader {
     public ArrayList<String> getTableNames(Connection conn, String namespace) throws SQLException {
         DatabaseMetaData md = conn.getMetaData();
         String[] types = {"TABLE"};
-        ResultSet rs = md.getTables(namespace, namespace, "%", types);
+        ResultSet rs = md.getTables(this.defaultCatalog, namespace, "%", types);
         ArrayList<String> names = new ArrayList<>();
         while (rs.next()) {
             String name = rs.getString("TABLE_NAME");

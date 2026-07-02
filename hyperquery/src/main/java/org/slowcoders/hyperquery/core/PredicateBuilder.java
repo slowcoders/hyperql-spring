@@ -71,7 +71,7 @@ public abstract class PredicateBuilder<T extends QFilter<?>> {
         boolean isOptional;
 
         public PropertyCheck(String property, SqlBuilder sqlGenerator) {
-            https://this.property = property.substring(0, property.length() - 1);
+            this.property = property.substring(0, property.length() - 1);
             this.sqlGenerator = sqlGenerator;
             this.isOptional = property.endsWith("?");
         }

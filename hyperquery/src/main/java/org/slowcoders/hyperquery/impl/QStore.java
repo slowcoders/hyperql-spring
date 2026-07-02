@@ -111,6 +111,9 @@ public class QStore implements ViewResolver, JdbcConnector {
 
     @Override
     public HSchema getTargetSchema(QJoin join) {
+        if (join == null) {
+            throw new IllegalArgumentException("join must not be null.");
+        }
         return join.getTargetRelation(this).loadSchema(this);
     }
 
@@ -256,8 +259,6 @@ public class QStore implements ViewResolver, JdbcConnector {
         List<ResultMapping> resultMappings = new ArrayList<>();
 
         for (Field f : clazz.getDeclaredFields()) {
-            String columnName = HSchema.Helper.getColumnName(f); // @TColumn 등에서 컬럼명 추출
-            if (columnName == null) continue;
 
             if (HSchema.Helper.isCollectionType(f)) {
                 // 1:N Collection 매핑 처리
@@ -278,6 +279,8 @@ public class QStore implements ViewResolver, JdbcConnector {
                         .build();
                 resultMappings.add(mapping);
             } else if (true || propertyPrefix.isEmpty() /* top level only ?? */) {
+                String columnName = HSchema.Helper.getColumnName(f); // @TColumn 등에서 컬럼명 추출
+                if (columnName == null) continue;
                 // 일반 컬럼 매핑 (ID 또는 Result)
                 boolean isPK = HSchema.Helper.isUniqueKey(f);
                 ResultMapping mapping = new ResultMapping.Builder(configuration, f.getName(), f.getName(), f.getType())

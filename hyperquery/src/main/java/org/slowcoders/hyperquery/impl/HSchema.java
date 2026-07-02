@@ -200,7 +200,7 @@ public class HSchema extends HModel {
     public final String getCommaSeperatedPrimaryKeys() {
         SqlWriter sbQuery = new SqlWriter();
         for (String pk : getPrimaryKeys()) {
-            sbQuery.write(pk).write(", ");
+            sbQuery.write(pk).write(",");
         }
         sbQuery.replaceTrailingComma("");
         return sbQuery.toString();
@@ -257,7 +257,7 @@ public class HSchema extends HModel {
             if (anno != null) return anno.name();
 
             PKColumn pk = f.getAnnotation(PKColumn.class);
-            if (pk != null) return pk.value();
+            if (pk != null) return pk.name();
 
             TColumn tcol = f.getAnnotation(TColumn.class);
             if (tcol != null) return tcol.value();

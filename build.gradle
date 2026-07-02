@@ -1,31 +1,57 @@
-buildscript {
-    ext {
-        springBootVersion = '3.1.2'
-    }
-}
 
 plugins {
-    id 'java'
-    id 'idea'
-    id "io.freefair.lombok" version '5.3.3.3'
-    id 'org.springframework.boot' version "${springBootVersion}"
-    id 'io.spring.dependency-management' version '1.0.10.RELEASE'
+	id 'java'
+    id "io.freefair.lombok" version '9.5.0'
+	id 'org.springframework.boot' version '3.5.14'
+	id 'io.spring.dependency-management' version '1.1.7'
 }
 
-repositories {
-    mavenCentral()
-    maven { url "https://oss.sonatype.org/content/repositories/releases/" }
-    maven { url "https://plugins.gradle.org/m2/" }
-}
-
-configurations {
-    compileOnly {
-        extendsFrom annotationProcessor
+allprojects {
+    repositories {
+    	mavenCentral()
+    	maven {
+    		url "http://nexus.l-stella.com/repository/maven-public/"
+    		allowInsecureProtocol = true
+    	}
     }
 }
 
-dependencies {
-    implementation project(':sample-app')
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'java-library'
+    apply plugin: 'io.freefair.lombok'
+    apply plugin: 'org.springframework.boot'
+    apply plugin: 'io.spring.dependency-management'
+
+    group = 'net.lotte.hpss'
+    version = '0.0.1-SNAPSHOT'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+
+    // 공통 의존성
+    dependencies {
+        // Lombok
+        compileOnly 'org.projectlombok:lombok'
+        annotationProcessor 'org.projectlombok:lombok'
+
+        // 테스트
+        testImplementation 'org.springframework.boot:spring-boot-starter-test'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+
+//    dependencyManagement {
+//        imports {
+//            mavenBom "org.springframework.boot:spring-boot-dependencies:3.5.14"
+//        }
+//    }
+
+    tasks.named('test') {
+        useJUnitPlatform()
+    }
 }
 
 

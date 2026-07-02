@@ -66,8 +66,10 @@ public abstract class JdbcMetadataController {
             switch (type) {
                 case Javascript:
                     return dumpJsonSchemas(namespace);
-                case SpringJPA: case QEntity:
-                    return dumpJpaSchemas(namespace, type == SchemaType.SpringJPA);
+                case SpringJPA:
+                    return dumpJpaSchemas(namespace, true);
+                case HyperEntity:
+                    return dumpJpaSchemas(namespace, false);
                 default:
                     SourceWriter sw = new SourceWriter('"');
                     for (String table : storage.getTableNames(namespace)) {
@@ -111,16 +113,22 @@ public abstract class JdbcMetadataController {
         sb.write("public interface " + namespace + " {\n\n");
         sb.incTab();
         for (String tableName : storage.getTableNames(namespace)) {
+            try {
             QSchema schema = getSchema(namespace, tableName);
             if (schema instanceof JdbcSchema) {
-                ((JdbcSchema) schema).dumpJPAEntitySchema(sb,false, isJPA);
+                    ((JdbcSchema) schema).dumpJPAEntitySchema(sb, false, isJPA);
                 sb.write("\n\n");
+            }
+        }
+            catch (Exception e) {
+                e.printStackTrace();
             }
         }
         sb.decTab();
         sb.writeln("}");
         return sb.toString();
     }
+
     private String dumpJsonSchemas(String namespace) throws Exception {
         SourceWriter sb = new SourceWriter('\'');
         for (String tableName : storage.getTableNames(namespace)) {
@@ -159,7 +167,7 @@ public abstract class JdbcMetadataController {
         Simple,
         Javascript,
         SpringJPA,
-        QEntity
+        HyperEntity,
         // FormModel
     }
 }

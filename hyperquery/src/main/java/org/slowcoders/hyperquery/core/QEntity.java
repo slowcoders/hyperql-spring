@@ -12,6 +12,6 @@ public interface QEntity<T extends QEntity<T>> extends QUniqueRecord<T> {
 
     @Retention(RetentionPolicy.RUNTIME)
     @interface PKColumn {
-        String value();
+        String name();
     }
 }
