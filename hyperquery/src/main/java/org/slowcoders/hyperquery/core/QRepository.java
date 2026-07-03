@@ -15,6 +15,7 @@ public interface QRepository {
 
     @Update("${__sql__}")
     Object __deleteNested__(QEntity<?> entity);
+
     @Update("""
         WITH _DATA AS (
             ${__input_data__}

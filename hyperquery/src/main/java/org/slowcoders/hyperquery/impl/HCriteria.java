@@ -111,15 +111,9 @@ public class HCriteria extends ArrayList<String> {
         if (expr.length() > tupleEnd) {
             startChar = expr.charAt(tupleEnd);
             switch (startChar) {
-                case '(':
-                    endChar = ')';
-                    break;
-                case '[':
-                    endChar = ']';
-                    break;
-                case '{':
-                    endChar = '}';
-                    break;
+                case '(': endChar = ')'; break;
+                case '[': endChar = ']'; break;
+                case '{': endChar = '}'; break;
             }
             if (endChar == ' ' || (tupleEnd = expr.indexOf(endChar, tupleEnd)) == -1) {
                 throw new IllegalStateException("Invalid expression: " + expr);

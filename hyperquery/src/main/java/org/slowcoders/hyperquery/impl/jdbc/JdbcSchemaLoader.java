@@ -229,9 +229,10 @@ public abstract class JdbcSchemaLoader {
         String fktable_name;
 
         String pkColumnName;
+        String pkTableQName;
+
         String fkColumnName;
         String fkTableQName;
-        String pkTableQName;
 
         int key_seq;
         int update_rule;

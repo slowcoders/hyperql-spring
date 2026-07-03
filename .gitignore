@@ -2,14 +2,12 @@
 .idea
 .gradle
 derby.log
-hyperql-spring-lib/.gradle
 hyperql-spring-lib/build
-hyperql-spring-lib/bin
-hyperql-spring-lib/out
+hyperquery/build
+basecamp/build
 sample-app/bin
 sample-app/build
 sample-app/target
-sample-app/.gradle
 sample-app/src/main/resources/static
 sample-app/out
 db/data

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+
+<configuration>
+    <!-- default 옵션을 설정한다. -->
+    <settings>
+        <setting name="cacheEnabled" value="false"/>
+        <setting name="defaultExecutorType" value="REUSE"/>
+        <setting name="defaultStatementTimeout" value="180"/>
+        <setting name="mapUnderscoreToCamelCase" value="true" />
+        <setting name="jdbcTypeForNull" value="NULL" />
+        <setting name="callSettersOnNulls" value="true"/>
+    </settings>
+    <typeHandlers>
+        <typeHandler handler="org.slowcoders.basecamp.db.mybatis.handler.UuidTypeHandler" javaType="java.util.UUID"/>
+        <package name="org.mybatis.typehandlers.jsr310"/>
+    </typeHandlers>
+    <!--    <typeAliases></typeAliases>-->
+    <!-- plugins>
+        <plugin interceptor="org.slowcoders.basecamp.core.mybatis.interceptor.LogInterceptor" />
+    </plugins -->
+</configuration>

@@ -1,79 +1,30 @@
-plugins {
-    id 'java'
-    id 'idea'
-    id "io.freefair.lombok" version '5.3.3.3'
-    id 'org.springframework.boot' version "${springBootVersion}"
-    id 'io.spring.dependency-management' version '1.0.10.RELEASE'
-}
+//plugins {
+//    id 'java'
+//    id 'idea'
+////    id "io.freefair.lombok" version '5.3.3.3'
+////    id 'org.springframework.boot' version "${springBootVersion}"
+////    id 'io.spring.dependency-management' version '1.0.10.RELEASE'
+//}
 
-repositories {
-    mavenCentral()
-    maven { url "https://oss.sonatype.org/content/repositories/releases/" }
-    maven { url "https://plugins.gradle.org/m2/" }
-}
-
-configurations {
-    compileOnly {
-        extendsFrom annotationProcessor
-    }
-}
+//repositories {
+//    mavenCentral()
+//    maven {
+//   		url "http://nexus.l-stella.com/repository/maven-public/"
+//   		allowInsecureProtocol = true
+//   	}
+//}
+//
+//configurations {
+//    compileOnly {
+//        extendsFrom annotationProcessor
+//    }
+//}
 
 dependencies {
+    /*--------------------------------------------------------------------------*/
+    // base projects
+    /*--------------------------------------------------------------------------*/
     implementation project(':hyperql-spring-lib')
     implementation project(':hyperquery')
-
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springframework.boot:spring-boot-starter-aop'
-    implementation 'org.springframework.boot:spring-boot-devtools'
-    implementation 'org.springframework.boot:spring-boot-starter-validation'
-
-    // for Swagger API documentation
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
-
-    /*--------------------------------------------*/
-    /** select database driver */
-    /*--------------------------------------------*/
-//    /* for MySql */
-     implementation 'com.mysql:mysql-connector-j'
-//    /* for MariaDB */
-//    implementation 'org.mariadb.jdbc:mariadb-java-client'
-    /* for Postgres */
-    implementation 'org.postgresql:postgresql:42.3.6'
-
-    // for JDBC only
-    // implementation 'org.springframework.boot:spring-boot-starter-data'
-
-    // for JDBC + JPA
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-
-    implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.3'
-    implementation 'org.mybatis:mybatis-typehandlers-jsr310:1.0.2'
-
-    /*--------------------------------------------*/
-    /** select hibernate-type for JPA orm mapping */
-    /*--------------------------------------------*/
-    /* for hibernate 6.2 */
-    implementation 'io.hypersistence:hypersistence-utils-hibernate-62:3.5.1'
-    /* for hibernate 6.0, 6.1 */
-    // implementation 'io.hypersistence:hypersistence-utils-hibernate-60:3.1.2'
-    /* for hibernate 5.5, 5.6 */
-//    implementation 'io.hypersistence:hypersistence-utils-hibernate-55:3.1.2'
-    /* for hibernate 5.2 ~ 5.4 */
-    // implementation 'io.hypersistence:hypersistence-utils-hibernate-52:3.1.2'
-    /* for hibernate 5.0, 5.1 */
-    // implementation 'io.hypersistence:hypersistence-utils-hibernate-5:3.1.2'
-
-    implementation 'org.bgee.log4jdbc-log4j2:log4jdbc-log4j2-jdbc4.1:1.16'
-
-    testImplementation('org.springframework.boot:spring-boot-starter-test') {
-        // JUnit 3/4를 사용하는 빈티지 엔진 제외
-        exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
-    }
-
-    // JPA cache
-    implementation 'org.hibernate.orm:hibernate-jcache'
-//    implementation 'org.hibernate.orm:hibernate-ecache'
-    implementation 'org.ehcache:ehcache:3.10.8'
-//    implementation 'javax.cache:cache-api:1.1.1'
+    implementation project(':basecamp')
 }
-

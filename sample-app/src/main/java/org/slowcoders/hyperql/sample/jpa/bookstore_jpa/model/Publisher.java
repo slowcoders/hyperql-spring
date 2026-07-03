@@ -3,6 +3,8 @@ package org.slowcoders.hyperql.sample.jpa.bookstore_jpa.model;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.util.Set;
 
@@ -25,7 +27,7 @@ public class Publisher implements java.io.Serializable {
 
     @Getter @Setter
     @Column(name = "memo", nullable = true, columnDefinition = "jsonb")
-    @org.hibernate.annotations.Type(io.hypersistence.utils.hibernate.type.json.JsonType.class)
+    @JdbcTypeCode(SqlTypes.JSON)
     private com.fasterxml.jackson.databind.JsonNode memo;
 
 }

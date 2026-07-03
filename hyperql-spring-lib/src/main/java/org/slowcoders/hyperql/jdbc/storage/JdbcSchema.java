@@ -215,7 +215,7 @@ public class JdbcSchema extends QSchema {
                 sb.writeln("@org.hibernate.annotations.Type(io.hypersistence.utils.hibernate.type.json.JsonType.class)");
             }
         } else {
-            // sb.write("@QColumn(").writeQuoted(col.getPhysicalName()).write(")\n");
+            sb.write("@QColumn(name = ").writeQuoted(col.getPhysicalName()).write(")\n");
         }
 
         String fieldName = isJPA ? getJavaFieldName(col)
@@ -292,7 +292,7 @@ public class JdbcSchema extends QSchema {
                 sb.writeln();
                 sb.incTab();
                 if (firstFk.getSchema().hasOnlyForeignKeys()) {
-                    ((JdbcSchema) firstFk.getSchema()).dumpUniqueConstraints(sb);
+                    ((JdbcSchema) firstFk.getSchema()).dumpUniqueConstraints(sb, isJPA);
                 }
                 sb.write("joinColumns = @JoinColumn(name=").writeQuoted(firstFk.getPhysicalName()).write("), ");
                 sb.write("inverseJoinColumns = @JoinColumn(name=").writeQuoted(join.getAssociativeJoin().getJoinConstraint().get(0).getPhysicalName()).write("))\n");
@@ -368,7 +368,7 @@ public class JdbcSchema extends QSchema {
             }
             sb.writeln();
             sb.incTab();
-            dumpUniqueConstraints(sb);
+            dumpUniqueConstraints(sb, isJPA);
             sb.decTab();
             sb.replaceTrailingComma("\n)\n");
         }
@@ -377,12 +377,14 @@ public class JdbcSchema extends QSchema {
         }
     }
 
-    private void dumpUniqueConstraints(SourceWriter sb) {
+    private void dumpUniqueConstraints(SourceWriter sb, boolean isJPA) {
         if (!this.uniqueConstraints.isEmpty()) {
-            sb.write("uniqueConstraints = {");
+            if (isJPA) {
+                sb.write("uniqueConstraints = {\n");
             sb.incTab();
+            }
             for (Map.Entry<String, ArrayList<String>> entry: this.uniqueConstraints.entrySet()) {
-                sb.write("\n@UniqueConstraint(name =\"" + entry.getKey() + "\", columnNames = {");
+                sb.write("@UniqueConstraint(name =\"" + entry.getKey() + "\", columnNames = {");
                 sb.incTab();
                 for (String column : entry.getValue()) {
                     sb.writeQuoted(column).write(", ");
@@ -390,8 +392,10 @@ public class JdbcSchema extends QSchema {
                 sb.replaceTrailingComma("}),");
                 sb.decTab();
             }
-            sb.decTab();
-            sb.replaceTrailingComma("\n},\n");
+            if (isJPA) {
+                sb.decTab();
+                sb.replaceTrailingComma("\n},\n");
+            }
         }
     }
 

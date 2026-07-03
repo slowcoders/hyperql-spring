@@ -15,11 +15,11 @@ import java.util.Collections;
 import java.util.List;
 
 public class PredicateTranslator extends PredicateBaseVisitor<String> {
-    StringBuilder sb = new StringBuilder();
-    SqlBuilder relation;
-    List<String> paramNames;
+    private StringBuilder sb = new StringBuilder();
+    private SqlBuilder relation;
+    private List<String> paramNames;
 
-    public PredicateTranslator(SqlBuilder relation, List<String> paramNames) {
+    PredicateTranslator(SqlBuilder relation, List<String> paramNames) {
         this.relation = relation;
         this.paramNames = paramNames;
     }

@@ -272,6 +272,10 @@ public class SqlBuilder extends ViewNode {
     }
 
     void parseColumnMappings(HModel view, Class<?> recordType, String propertyPrefix, List<ColumnMapping> columnMappings, boolean includeNestedColumn) {
+        Class<?> superclass = recordType.getSuperclass();
+        if (QRecord.class.isAssignableFrom(superclass)) {
+            parseColumnMappings(view, superclass, propertyPrefix, columnMappings, includeNestedColumn);
+        }
         for (Field f : recordType.getDeclaredFields()) {
             if (Modifier.isStatic(f.getModifiers()) ||
                     HSchema.Helper.isTransient(f)) continue;
@@ -305,7 +309,8 @@ public class SqlBuilder extends ViewNode {
     }
 
     public String buildInsert(QUniqueRecord<?> entity, boolean updateOnConflict) {
-        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, entity.getClass(), "", true);        sbQuery.write("INSERT INTO ").write(rootSchema.getTableName()).write(" (");
+        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, entity.getClass(), "", true);        
+        sbQuery.write("INSERT INTO ").write(rootSchema.getTableName()).write(" (");
         for (ColumnMapping mapping : columnMappings) {
             sbQuery.write(mapping.columnName).write(", ");
         }
@@ -324,11 +329,13 @@ public class SqlBuilder extends ViewNode {
                 }
             }
             sbQuery.replaceTrailingComma(")\nDO UPDATE SET\n");
+            sbQuery.incTab();
             for (ColumnMapping mapping : columnMappings) {
                 if (mapping.columnName.equals("id")) continue;
                 sbQuery.write(mapping.columnName).write(" = #{").write(mapping.fieldName).write("}, ");
             }
             sbQuery.shrinkLength(2);
+            sbQuery.decTab();
         }
 
         return sbQuery.toString();
@@ -483,6 +490,7 @@ public class SqlBuilder extends ViewNode {
         if (subEntities.isEmpty()) {
             sbQuery.write("select * from ").write(rootSchema.getTableName()).write(" where false");
         } else {
+            sbQuery.incTab();
             sbQuery.write("select ");
             sbQuery.incTab();
             for (ColumnMapping mapping : columnMappings) {
@@ -503,6 +511,7 @@ public class SqlBuilder extends ViewNode {
             }
             sbQuery.decTab();
         }
+        sbQuery.decTab();
         sbQuery.decTab();
         sbQuery.write("\n), _UPSERT as (\n");
         sbQuery.incTab();
@@ -552,7 +561,7 @@ public class SqlBuilder extends ViewNode {
         sbQuery.write("WHERE ");
         sbQuery.incTab();
         for (String col : rootSchema.getPrimaryKeys()) {
-            sbQuery.write("t_0.").write(col).write(" = _DATA.").write(col).write("\n AND ");
+            sbQuery.write(ROOT_ALIAS).write(".").write(col).write(" = _DATA.").write(col).write("\n AND ");
         }
         sbQuery.decTab();
         sbQuery.shrinkLength(5);
