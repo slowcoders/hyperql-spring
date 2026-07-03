@@ -1,0 +1,81 @@
+# Database 기본 설정.
+spring:
+  datasource:
+    driverClassName: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
+    url: ${DB_URL:jdbc:log4jdbc:postgresql://localhost/hql_demo}?useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USER:hql_demo}
+    password: ${DB_PASS:hql_demo}
+#  sql.init:
+#    mode: always
+#    schema-locations: classpath*:db/${database}/bookstore-schema.sql
+#    data-locations: classpath*:db/${database}/bookstore-data.sql
+
+
+# MyBatis 설정.
+mybatis:
+  # XML 설정 파일 사용 시.
+  # config-location: classpath:mybatis-config.xml
+
+  # 주의) classpath: 대신에 classpath*: 를 사용해야 base 모듈 참조 가능.
+  mapper-locations: classpath*:sql/**/*.xml
+
+  type-aliases-package: org.slowcoders.basecamp.core.entity, org.slowcoders.basecamp.core.entity.orm
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    default-executor-type: REUSE
+    default-statement-timeout: 30  # 초 단위.
+    jdbc-type-for-null: NULL
+    call-setters-on-nulls: true
+
+  type-handlers-package: org.slowcoders.basecamp.core.handler
+    - org.mybatis.typehandlers.jsr310
+    - org.slowcoders.basecamp.core.handler
+  configuration-properties:
+    # MyBatis xml 파일에서 ${globalProperty1} 으로 참조.
+    global-property1: value
+---
+
+# JPA 설정.
+spring:
+  jpa:
+    # open-in-view: true(=default) 인 경우, 모든 Controller API 실행 시 Transaction 을 자동 생성한다.
+    #               단, API 실행에 긴 시간이 걸리는 경우, 그 시간만큼 DB Connection 을 유지하는 단점이 있다.
+    # open-in-view: false 로 변경하면, 명시적인 @Transactional 설정이 필요하다.
+    open-in-view: true
+    hibernate:
+      ## validate: Schema 일치 여부만 검증. update: 칼럼 추가 변경만.
+      ddl-auto: update
+      ## DB 칼럼명에 대소문자를 섞어 사용하는 경우에 필요.
+      naming.physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+
+    properties:
+      ### @Cacheable 이 명시된 Entity 만 cache 되도록 설정.
+      jakarta.persistence.sharedCache.mode: ENABLE_SELECTIVE
+
+      hibernate:
+        ### to disable camelCase
+        # physical_naming_strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+
+        ## DriverSpy 사용 시엔 실제 driver 유형을 명시해야 한다.
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+#        ### default schema for entity.
+#        # default_schema: schema-name
+#
+#        ### Hibernate cache 설정.
+#        #--------------------------
+#        cache:
+#          ### true: 2nd level cache 활성화.
+#          use_second_level_cache: true
+#          use_query_cache: true
+#          ### jcache 사용시
+#          region.factory_class: org.hibernate.cache.jcache.internal.JCacheRegionFactory
+#          ### hibernate-ehcache 사용시
+#          # region.factory_class: org.hibernate.cache.ehcache.EhCacheRegionFactory
+#
+#        ### @Cacheable 에 대해 자동 Cache 선택, false 인 경우, @Cache 사용하여 region 명시 필요 (see CacheConfig)
+#        javax:
+#          cache.missing_cache_strategy: create
+

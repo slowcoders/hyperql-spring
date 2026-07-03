@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.Setter;
 import java.util.*;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 
 @Entity
@@ -25,7 +27,7 @@ public class Author implements java.io.Serializable {
 
     @Getter @Setter
     @Column(name = "profile", nullable = true, columnDefinition = "jsonb")
-    @org.hibernate.annotations.Type(io.hypersistence.utils.hibernate.type.json.JsonType.class)
+    @JdbcTypeCode(SqlTypes.JSON)
     private com.fasterxml.jackson.databind.JsonNode profile;
 
     @Getter @Setter

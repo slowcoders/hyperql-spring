@@ -12,6 +12,9 @@ spring:
 
 
   datasource:
+    hikari:
+      connection-init-sql: "LISTEN session;"
+
     driverClassName: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
     url: ${DB_URL:jdbc:log4jdbc:${database}://localhost/hql_demo}?useSSL=false&allowPublicKeyRetrieval=true
     username: ${DB_USER:hql_demo}

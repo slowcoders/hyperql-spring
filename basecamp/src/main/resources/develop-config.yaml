@@ -1,0 +1,53 @@
+debug: true
+
+#==================== Spring Dev Tools =====================
+spring:
+  devtools:
+    restart:
+      enabled: true
+      additional-paths: src/main/java
+    livereload:
+      enabled: true
+
+#==================== Logging =====================
+logging:
+  pattern:
+    console: "%-5level %d{yyyy-MM-dd HH:mm:ss}[%thread] [%logger:%line] - %msg%n"
+    file: "%-5level %d{yyyy-MM-dd HH:mm:ss}[%thread] [%logger:%line] - %msg%n"
+  level:
+    ## 기본 설정.
+    root: info
+    ## SQL 관련
+    sql: info
+    jdbc:
+      log: info
+      connection: off
+      sqlonly: info
+      sqltiming: off
+      audit: off
+      resultset: off
+      resultsettable: info
+    ## modules
+    org.slowcoders.basecamp: debug
+
+#==================== Springdoc =====================
+springdoc:
+  api-docs:
+    version: openapi_3_1
+    groups.enabled: true
+  ## actuator api 포함 여부
+  show-actuator: true
+  swagger-ui:
+    groups-order: DESC
+    tags-sorter: alpha
+    operationsSorter: method
+    disable-swagger-default-url: true
+    display-request-duration: true
+    persist-authorization: true
+  default-consumes-media-type: application/json;charset=UTF-8
+  default-produces-media-type: application/json;charset=UTF-8
+#  packages-to-scan: net.lotte.hpss
+#  paths-to-match: /demo/**, /hpss/**
+
+
+
