@@ -1,7 +1,9 @@
 package org.slowcoders.hyperql.sample.hq.bookstore;
 
 import lombok.RequiredArgsConstructor;
-import org.slowcoders.hyperql.sample.hq.bookstore.mapper.UserMapper;
+import org.slowcoders.basecamp.security.SecurityUtil;
+import org.slowcoders.hyperql.sample.session.UserDto;
+import org.slowcoders.hyperql.sample.session.UserMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -14,6 +16,7 @@ import java.util.List;
 public class HqUserController {
 
     private final UserMapper userMapper;
+    private final SecurityUtil securityUtil;
 
     @GetMapping
     public List<UserDto> findAll() {
@@ -21,7 +24,7 @@ public class HqUserController {
     }
 
     @GetMapping("/{id}")
-    public UserDto findById(@PathVariable long id) {
+    public UserDto findById(@PathVariable String id) {
         return userMapper.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: " + id));
     }
@@ -29,16 +32,16 @@ public class HqUserController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public UserDto create(@RequestBody UserDto body) {
-        if (body.getId() != null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "id must be null on create");
+        if (body.getPassword() != null) {
+            body.setPassword(securityUtil.encrypt(body.getPassword()));
         }
         userMapper.insert(body); // useGeneratedKeys 로 id 채워지는 전제
         return body;
     }
 
     @PutMapping("/{id}")
-    public UserDto update(@PathVariable long id, @RequestBody UserDto body) {
-        body.setId(id);
+    public UserDto update(@PathVariable String id, @RequestBody UserDto body) {
+        body.setUserId(id);
         int updated = userMapper.update(body);
         if (updated == 0) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: " + id);

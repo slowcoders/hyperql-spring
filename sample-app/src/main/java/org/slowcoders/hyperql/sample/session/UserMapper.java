@@ -1,8 +1,8 @@
-package org.slowcoders.hyperql.sample.hq.bookstore.mapper;
+package org.slowcoders.hyperql.sample.session;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import org.slowcoders.hyperql.sample.hq.bookstore.UserDto;
+import org.slowcoders.basecamp.security.SessionInfo;
 import org.slowcoders.hyperql.sample.hq.bookstore.api.HqBookController;
 import org.slowcoders.hyperql.sample.hq.bookstore.model.BookSales;
 
@@ -12,7 +12,7 @@ import java.util.Optional;
 @Mapper
 public interface UserMapper {
 
-    Optional<UserDto> findById(@Param("id") long id);
+    Optional<UserDto> findById(@Param("userId") String id);
 
     List<UserDto> findAll();
 
@@ -23,4 +23,5 @@ public interface UserMapper {
     int deleteById(@Param("id") long id);
 
     List<BookSales> getBookSales(HqBookController.BookSalesFilter salesFilter);
+
 }

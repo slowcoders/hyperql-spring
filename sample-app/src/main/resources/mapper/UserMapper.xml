@@ -3,41 +3,34 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="org.slowcoders.hyperql.sample.hq.bookstore.mapper.UserMapper">
+<mapper namespace="org.slowcoders.hyperql.sample.session.UserMapper">
 
-    <resultMap id="UserMap" type="org.slowcoders.hyperql.sample.hq.bookstore.UserDto">
-        <id     property="id"        column="id"/>
-        <result property="email"     column="email"/>
-        <result property="name"      column="name"/>
-        <result property="createdAt" column="created_at"/>
-    </resultMap>
-
-    <select id="findById" resultMap="UserMap">
-        SELECT id, email, name, created_at
-        FROM "User"
-        WHERE id = #{id}
+    <select id="findById" resultType="org.slowcoders.hyperql.sample.session.UserDto">
+        SELECT user_id, email, password, name, created_at
+        FROM bookstore.user
+        WHERE user_id = #{userId}
     </select>
 
-    <select id="findAll" resultMap="UserMap">
-        SELECT id, email, name, created_at
-        FROM "User"
-        ORDER BY id DESC
+    <select id="findAll" resultType="org.slowcoders.hyperql.sample.session.UserDto">
+        SELECT user_id, email, name, created_at
+        FROM bookstore.user
+        ORDER BY user_id
     </select>
 
-    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO "User" (email, name, created_at)
-        VALUES (#{email}, #{name}, now())
+    <insert id="insert" keyProperty="userId">
+        INSERT INTO bookstore.user (user_id, name, password)
+        VALUES (#{userId}, #{name}, #{password})
     </insert>
 
     <update id="update">
-        UPDATE "User"
+        UPDATE bookstore.user
         SET email = #{email},
             name  = #{name}
-        WHERE id = #{id}
+        WHERE user_id = #{userId}
     </update>
 
     <delete id="deleteById">
-        DELETE FROM "User"
+        DELETE FROM bookstore.user
         WHERE id = #{id}
     </delete>
 

@@ -1,41 +1,26 @@
 package org.slowcoders.basecamp.security;
 
 
-import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slowcoders.basecamp.app.model.UserDto;
-import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.security.authentication.dao.AbstractUserDetailsAuthenticationProvider;
 import org.springframework.security.core.userdetails.UserCache;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 
 
 @Slf4j
-@Service
 @Transactional
-@RequiredArgsConstructor
-public class UserDetailsServiceImpl implements UserDetailsService, UserCache {
-
-    private final SecurityUtil securityUtil;
-
-    private final AuthenticationProvider authenticationProvider;
+public class AbstractUserDetailsService implements UserDetailsService, UserCache {
 
     private final HashMap<String, SecurityUserDetails> userCache = new HashMap<>();
 
-    @PostConstruct
-    public void init() {
-        /**
-         * AuthenticationProvider 를 별도로 구현하지 않으면, DaoAuthenticationProvider 가 사용된다.
-         * -- class DaoAuthenticationProvider extends AbstractUserDetailsAuthenticationProvider
-         */
-        ((AbstractUserDetailsAuthenticationProvider)authenticationProvider).setUserCache(this);
+    private final SessionInfoRepository delegate;
+
+    protected AbstractUserDetailsService(SessionInfoRepository delegate) {
+        this.delegate = delegate;
     }
 
     @Override
@@ -67,8 +52,9 @@ public class UserDetailsServiceImpl implements UserDetailsService, UserCache {
          */
 
         // 사용자 정보 조회
-        UserDto userDto = UserDto.builder().loginId(loginId)
-                .password(securityUtil.encrypt("1234")).build();
+        SessionInfo userDto = (SessionInfo) delegate.loadSessionInfoByLoginId(loginId);
+//        UserDto.builder().loginId(loginId)
+//                .password(securityUtil.encrypt("1234")).build();
 //        UserDto userDto = fwcm0000Service.getLoginId4User2(loginId);
 //        if (userDto == null) {
 //            throw new BusinessException("ER-FWCM-1016");

@@ -1,16 +1,17 @@
-package org.slowcoders.basecamp.app.config;
+package org.slowcoders.basecamp.security.config;
 
-import io.jsonwebtoken.io.Decoders;
 import lombok.RequiredArgsConstructor;
 import org.slowcoders.basecamp.security.CustomJwtFilter;
 import org.slowcoders.basecamp.security.SecurityUtil;
 import org.slowcoders.basecamp.security.TokenProvider;
-import org.slowcoders.basecamp.security.config.AuthProperties;
-import org.slowcoders.basecamp.security.config.JwtProperties;
+import org.slowcoders.basecamp.security.AbstractUserDetailsService;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -27,49 +28,43 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 @EnableConfigurationProperties({AuthProperties.class})
 @RequiredArgsConstructor
-public class SecurityConfig {
+public class BaseSecurityConfig {
 
     private final AuthProperties authProperties;
     private final UserDetailsService userDetailsService;
-    private final SecurityUtil securityUtil;
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new PasswordEncoder() {
-            @Override
-            public String encode(CharSequence rawPassword) {
-                return securityUtil.encrypt(rawPassword.toString());
-            }
-
-            @Override
-            public boolean matches(CharSequence rawPassword, String encodedPassword) {
-                return encodedPassword.equals(encode(rawPassword));
-            }
-        };
-    }
-
 
     @Bean(name = "tokenProvider")
     public TokenProvider tokenProvider(AuthProperties authProperties) {
-        JwtProperties jwt = authProperties.getJwtConfig();
         return new TokenProvider(
-                Decoders.BASE64.decode(jwt.getSecret()),
-                jwt.getAccessTokenValidityInSeconds(),
-                jwt.getRefreshTokenValidityInSeconds(),
+//                Decoders.BASE64.decode(authProperties.getSecret())
+                        authProperties.getSecret().getBytes(),
+                authProperties.getAccessTokenPeriodInSec(),
+                authProperties.getRefreshTokenPeriodInSec(),
                 userDetailsService
         );
     }
 
     @Bean
+    public AuthenticationProvider authenticationProvider(AbstractUserDetailsService userDetailsService,
+                                                         PasswordEncoder passwordEncoder) {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder);
+        provider.setUserCache(userDetailsService);
+        return provider;
+    }
+
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity,
-                                           CustomJwtFilter customJwtFilter) throws Exception {
+                                           CustomJwtFilter customJwtFilter,
+                                           CorsConfiguration corsConfiguration) throws Exception {
         httpSecurity
-                .csrf(AbstractHttpConfigurer::disable) // token을 사용하는 방식이기 때문에 csrf를 disable
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-//                .exceptionHandling(exceptionConfig ->
-//                        exceptionConfig.authenticationEntryPoint(jwtAuthenticationEntryPoint)
-//                                .accessDeniedHandler(jwtAccessDeniedHandler)
-//                )
+                .csrf(AbstractHttpConfigurer::disable) // token을 사용 시 csrf를 disable
+                /**
+                 * Spring Security 사용 시 MVC 설정보다 Security Filter가 먼저 작동하므로,
+                 * Security 설정 클래스 내에서 CORS 설정을 활성화해 주어야만 한다.
+                 */
+                .cors(cors -> cors.configurationSource(corsConfigurationSource(corsConfiguration)))
                 .headers(headerConfig ->
                         headerConfig.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
                 )
@@ -89,15 +84,20 @@ public class SecurityConfig {
         return httpSecurity.build();
     }
 
+    @Bean
+    @ConfigurationProperties(prefix = "basecamp.cors")
+    public CorsConfiguration corsProperties() {
+        return new CorsConfiguration();
+    }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        //configuration.addAllowedOrigin("*");
-        configuration.addAllowedOriginPattern("*");
-        configuration.addAllowedHeader("*");
-        configuration.addAllowedMethod("*");
-        configuration.setAllowCredentials(false);
+    public CorsConfigurationSource corsConfigurationSource(CorsConfiguration configuration) {
+//        CorsConfiguration configuration = new CorsConfiguration();
+//        //configuration.addAllowedOrigin("*");
+//        configuration.addAllowedOriginPattern("*");
+//        configuration.addAllowedHeader("*");
+//        configuration.addAllowedMethod("*");
+//        configuration.setAllowCredentials(false);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;

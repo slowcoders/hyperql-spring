@@ -44,7 +44,7 @@ public class TokenProvider {
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
-        if (claims.get("sub") == null || claims.get("role") == null) {
+        if (claims.get("sub") == null) {
             // TODO : JWT 토큰 오류
             throw new JwtSecurityException("JWT 토큰 오류");
         }
@@ -78,7 +78,7 @@ public class TokenProvider {
 
         SessionInfo sessionInfo = securityUserDetails.getSessionInfo();
         Map<String, Object> claims = new HashMap<>();
-        claims.put("timeZoneCd",  sessionInfo.getUserTimeZone());
+        claims.put("timeZoneCd",  sessionInfo.getUserTimeZone().getId());
         claims.put("username", securityUserDetails.getUsername());
         claims.put("languageCd", sessionInfo.getUserLanguageCode());
 

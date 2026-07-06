@@ -16,7 +16,19 @@ spring:
       connection-init-sql: "LISTEN session;"
 
     driverClassName: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
-    url: ${DB_URL:jdbc:log4jdbc:${database}://localhost/hql_demo}?useSSL=false&allowPublicKeyRetrieval=true
-    username: ${DB_USER:hql_demo}
-    password: ${DB_PASS:hql_demo}
+#    url: ${DB_URL:jdbc:log4jdbc:${database}://localhost/hql_demo}?useSSL=false&allowPublicKeyRetrieval=true
+#    username: ${DB_USER:hql_demo}
+#    password: ${DB_PASS:hql_demo}
+
+    main:
+      hikari:
+        jdbcUrl: ${DB_URL:jdbc:log4jdbc:postgresql://localhost/hql_demo}?useSSL=false&allowPublicKeyRetrieval=true
+        username: ${DB_USER:hql_demo}
+        password: ${DB_PASS:hql_demo}
+    replica:
+      hikari:
+        jdbcUrl: ${DB_URL:jdbc:log4jdbc:postgresql://localhost/hql_demo}?useSSL=false&allowPublicKeyRetrieval=true
+        username: ${DB_USER:hql_demo}
+        password: ${DB_PASS:hql_demo}
+
 

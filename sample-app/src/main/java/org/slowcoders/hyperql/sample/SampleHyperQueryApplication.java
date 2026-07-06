@@ -1,5 +1,6 @@
 package org.slowcoders.hyperql.sample;
 
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -9,6 +10,10 @@ import org.springframework.context.event.EventListener;
 
 @SpringBootApplication
 @ComponentScan(basePackages = { "org.slowcoders.hyperql", "org.slowcoders.basecamp" })
+@MapperScan(basePackages = {
+        // mapper class scan path 명시적 지정. 로딩 속도 향상.
+        "org.slowcoders.hyperql.sample",
+    }, sqlSessionFactoryRef = "sqlSessionFactory")
 public class SampleHyperQueryApplication {
 	public static void main(String[] args) {
         if (System.getProperty("spring.profiles.active") == null) {

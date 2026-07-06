@@ -23,7 +23,7 @@ subprojects {
     apply plugin: 'org.springframework.boot'
     apply plugin: 'io.spring.dependency-management'
 
-    group = 'net.lotte.hpss'
+    group = 'org.slowcoders.basecamp'
     version = '0.0.1-SNAPSHOT'
 
     java {

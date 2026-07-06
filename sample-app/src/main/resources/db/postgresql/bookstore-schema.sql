@@ -1,6 +1,19 @@
 create schema if not exists bookstore;
 create schema if not exists bookstore_jpa;
 
+create table if not exists bookstore.user
+(
+    user_id    text not null primary key,
+    name        varchar(255),
+    email       varchar(255),
+    password    varchar(255),
+    created_at  timestamp with time zone default now(),
+    note        jsonb,
+    password_error_count  int default 0
+);
+
+alter table bookstore.user owner to hql_demo;
+
 create table if not exists bookstore.author
 (
     id  bigint not null

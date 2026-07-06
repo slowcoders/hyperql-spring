@@ -3,7 +3,7 @@ package org.slowcoders.hyperql.sample.hq.bookstore.api;
 import org.slowcoders.hyperql.sample.hq.bookstore.BookDto;
 import org.slowcoders.hyperql.sample.hq.bookstore.BookFilter;
 import org.slowcoders.hyperql.sample.hq.bookstore.BookService;
-import org.slowcoders.hyperql.sample.hq.bookstore.mapper.UserMapper;
+import org.slowcoders.hyperql.sample.session.UserMapper;
 import org.slowcoders.hyperql.sample.hq.bookstore.model.Book;
 import org.slowcoders.hyperql.sample.hq.bookstore.model.BookOrder;
 import org.slowcoders.hyperql.sample.hq.bookstore.model.BookSales;

@@ -9,8 +9,11 @@ import java.util.List;
 
 @Getter
 @Setter
-@ConfigurationProperties(prefix = "hpss.auth")
+@ConfigurationProperties(prefix = "basecamp.auth")
 public class AuthProperties {
+    private String secret;
+    private Long accessTokenPeriodInSec;
+    private Long refreshTokenPeriodInSec;
+
     private List<String> publicUrls = new ArrayList<>();
-    private JwtProperties jwtConfig;
 }

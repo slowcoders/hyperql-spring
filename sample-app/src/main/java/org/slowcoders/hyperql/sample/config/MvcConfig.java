@@ -19,15 +19,15 @@ public class MvcConfig implements WebMvcConfigurer {
         return loggingFilter;
     }
 
-    private final long MAX_AGE_SECS = 3600;
-
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**")
-                .allowedOrigins("http://localhost:7007", "http://localhost:8080")
-                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-                .allowedHeaders("*")
-                .allowCredentials(true)
-                .maxAge(MAX_AGE_SECS);
-    }
+//    private final long MAX_AGE_SECS = 3600;
+//
+//    @Override
+//    public void addCorsMappings(CorsRegistry registry) {
+//        registry.addMapping("/**")
+//                .allowedOrigins("http://localhost:7007", "http://localhost:8080")
+//                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+//                .allowedHeaders("*")
+//                .allowCredentials(true)
+//                .maxAge(MAX_AGE_SECS);
+//    }
 }

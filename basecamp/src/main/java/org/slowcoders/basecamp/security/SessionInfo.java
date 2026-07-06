@@ -1,15 +1,17 @@
 package org.slowcoders.basecamp.security;
 
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.ZoneId;
 import java.util.Collection;
 
-public interface SessionInfo {
+public interface SessionInfo extends UserDetails {
 
     static SessionInfo current() {
-        return (SessionInfo) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ((SecurityUserDetails)SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getSessionInfo();
     }
 
     String getLoginId();

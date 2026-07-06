@@ -28,10 +28,10 @@ import java.util.Base64;
 @Component
 public class SecurityUtil  {
 
-	@Value("${app.security.aes256.key:default-security-key}")
+	@Value("${basecamp.security.aes256.key:any-text-16bytes}")
 	private String key;
 
-	@Value("${app.security.aes256.iv:default-iv}")
+	@Value("${basecamp.security.aes256.iv:any-text-16bytes}")
 	private String iv;
 
 	private static final String UTF8 = "UTF-8";

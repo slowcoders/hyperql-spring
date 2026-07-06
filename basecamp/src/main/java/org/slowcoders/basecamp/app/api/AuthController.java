@@ -15,7 +15,7 @@ import org.springframework.web.context.request.NativeWebRequest;
 
 @Slf4j
 @RestController
-@RequestMapping("/v1/auth")
+@RequestMapping("/auth")
 @RequiredArgsConstructor
 public class AuthController {
 

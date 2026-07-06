@@ -46,8 +46,7 @@ springdoc:
     persist-authorization: true
   default-consumes-media-type: application/json;charset=UTF-8
   default-produces-media-type: application/json;charset=UTF-8
-#  packages-to-scan: net.lotte.hpss
-#  paths-to-match: /demo/**, /hpss/**
+#  packages-to-scan: org.slowcoders.basecamp
 
 
 

@@ -24,10 +24,10 @@ public class DateTimeConfig {
     private static final DateTimeFormatter dateTimeFormater = DateTimeFormatter.ofPattern(dateTimePattern);
 
     @Bean
-    public Module hpssModule() {
-        SimpleModule hpssModule = new SimpleModule();
-        hpssModule.addSerializer(OffsetDateTime.class, new OffsetDateTimeSerializer(this));
-        return hpssModule;
+    public Module timeModule() {
+        SimpleModule timeModule = new SimpleModule();
+        timeModule.addSerializer(OffsetDateTime.class, new OffsetDateTimeSerializer(this));
+        return timeModule;
     }
 
     protected ZoneId getCurrentSessionTimeZone() {
