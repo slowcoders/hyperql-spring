@@ -42,6 +42,21 @@ describe('Hyper Query operations', () => {
         console.log(response.data);
     });
 
+    test('Update Orders', async () => {
+        const url = `${baseUrl}/books/3003/orders`
+        const response = await axios.post(url, [
+            {
+                bookId: 3003,
+                customerId: 1002,
+                orderDate: "2021-01-01",
+            }, {
+                bookId: 3003,
+                customerId: 1005,
+                orderDate: "2021-01-02",
+            }]);
+        console.log(response.data);
+    });
+
     test('Patch Book', async () => {
         const url = `${baseUrl}/books/updateSalesPricePercent`
         const response = await axios.patch(url, {
@@ -69,7 +84,6 @@ describe('Hyper Query operations', () => {
             "endDate": '3070-01-01'
         }
         const url = `${baseUrl}/books/sales`
-        const response = await axios.post(url, filter);
         console.log(response.data);
 
         // expect(customers.length).toBe(1)
@@ -85,58 +99,6 @@ describe('Hyper Query operations', () => {
         console.log(response.data);
 
         // expect(customers.length).toBe(1)
-    });
-
-    test('Cascaded Update Book order Test', async () => {
-
-        const orders = (await axios.get(`${baseUrl}/orders/book/3003`))?.data
-        console.log(orders);
-
-        for (const order of orders) {
-            order.orderDate = '2025-02-24';
-        }
-        orders.pop();
-        orders.push({
-            "bookId": 3003,
-            "orderDate": '2025-02-24',
-            "customerId": 1005,
-        })
-        const url = `${baseUrl}/orders/book/3003`
-        const response = await axios.post(url, orders);
-        console.log(response.data);
-
-        // expect(customers.length).toBe(1)
-    });
-
-    test('Nested Cascaded Update Book order Test', async () => {
-
-        const book = (await axios.get(`${baseUrl}/books/3003`))?.data
-        console.log(book);
-
-        for (const order of book.orders) {
-            order.orderDate = '2025-02-24';
-        }
-        book.orders.pop();
-        book.orders.push({
-            "bookId": 3003,
-            "orderDate": '2025-02-24',
-            "customerId": 1002,
-        })
-        const url = `${baseUrl}/books/3003`
-        const response = await axios.patch(url, book);
-        console.log(response.data);
-    });
-
-    test('Dynamic Filter Test', async () => {
-
-        const authors = (await axios.post(`${baseUrl}/authors/`,
-            {
-                name: '한',
-                p1: "A",
-                p2: "B",
-            }))?.data
-        console.log(authors);
-
     });
 });
 

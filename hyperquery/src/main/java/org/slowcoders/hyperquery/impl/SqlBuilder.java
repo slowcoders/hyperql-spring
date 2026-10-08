@@ -283,6 +283,10 @@ public class SqlBuilder extends ViewNode {
     }
 
     void parseColumnMappings(HModel view, Class<?> recordType, String propertyPrefix, List<ColumnMapping> columnMappings, boolean includeNestedColumn) {
+        Class<?> superclass = recordType.getSuperclass();
+        if (QRecord.class.isAssignableFrom(superclass)) {
+            parseColumnMappings(view, superclass, propertyPrefix, columnMappings, includeNestedColumn);
+        }
         for (Field f : recordType.getDeclaredFields()) {
             if (Modifier.isStatic(f.getModifiers()) ||
                     HSchema.Helper.isTransient(f)) continue;
@@ -392,61 +396,6 @@ public class SqlBuilder extends ViewNode {
         for (ColumnMapping mapping : columnMappings) {
             if (mapping.columnName.equals("id")) {
                 sbQuery.write("_DATA.").write(mapping.columnName).write(" = ").write(ROOT_ALIAS).write(".").write(mapping.columnName).write("\n AND");
-            }
-        }
-        sbQuery.decTab();
-        sbQuery.shrinkLength(5);
-        sbQuery.write("\nRETURNING *\n");
-        sbQuery.decTab();
-        sbQuery.write(")");
-        sbQuery.write("select count(*) from _DATA");
-        return sbQuery.toString();
-    }
-
-    public String buildUpdateNested_deprected(QUniqueRecord<?> entity) {
-        List<ColumnMapping> columnMappings = parseColumnMappings(rootSchema, entity.getClass(), "", true);
-        sbQuery.write("WITH _DATA as (\n");
-        sbQuery.incTab();
-        sbQuery.write("select ");
-        sbQuery.incTab();
-        for (ColumnMapping mapping : columnMappings) {
-            sbQuery.write("#{").write(mapping.fieldName).write("} as ").write(mapping.columnName).write(",\n");
-        }
-        sbQuery.decTab();
-        sbQuery.shrinkLength(2);
-        sbQuery.decTab();
-        sbQuery.write("\n), _OLD as (\n");
-        sbQuery.incTab();
-        sbQuery.write("select * from ").write(rootSchema.getTableName()).write(" _OLD\n");
-        sbQuery.write("JOIN _DATA\n  on ");
-        sbQuery.incTab();
-        for (ColumnMapping mapping : columnMappings) {
-            if (mapping.columnName.equals("id")) {
-                sbQuery.write("_OLD.").write(mapping.columnName).write(" = _DATA.").write(mapping.columnName).write("\n AND ");
-            }
-        }
-        sbQuery.shrinkLength(6);
-        sbQuery.decTab();
-        sbQuery.decTab();
-        sbQuery.write("\n), _NEW as (\n");
-        sbQuery.incTab();
-        sbQuery.write("UPDATE ").write(rootSchema.getTableName()).write(" t_0 SET\n");
-        sbQuery.incTab();
-        for (ColumnMapping mapping : columnMappings) {
-            if (mapping.columnName.equals("id")) continue;
-            String value = mapping.columnConfig == null ? "_DATA." + mapping.columnName :
-                    mapping.columnConfig.writeTransform().replaceAll("\\?", "_DATA." + mapping.columnName);
-            value = value.replaceAll("@", "t_0");
-            sbQuery.write(mapping.columnName).write(" = ").write(value).write(",\n");
-        }
-        sbQuery.shrinkLength(2);
-        sbQuery.decTab();
-        sbQuery.write("\nFROM _DATA\n");
-        sbQuery.write("WHERE ");
-        sbQuery.incTab();
-        for (ColumnMapping mapping : columnMappings) {
-            if (mapping.columnName.equals("id")) {
-                sbQuery.write("_DATA.").write(mapping.columnName).write(" = ").write("t_0.").write(mapping.columnName).write("\n AND");
             }
         }
         sbQuery.decTab();
@@ -610,6 +559,10 @@ public class SqlBuilder extends ViewNode {
         sbQuery.shrinkLength(2);
         sbQuery.decTab();
         sbQuery.decTab();
+        sbQuery.write("\nRETURNING *");
+        sbQuery.decTab();
+        sbQuery.write("\n), _DELETE as (");
+        sbQuery.incTab();
         sbQuery.write("\n)\nDELETE FROM hql_demo.bookstore.book_order ").write(ROOT_ALIAS);
         sbQuery.incTab();
         sbQuery.write("WHERE NOT EXISTS (\n");

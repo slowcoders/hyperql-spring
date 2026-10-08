@@ -12,7 +12,8 @@ spring:
 
 
   datasource:
-    url: ${DB_URL:jdbc:${database}://localhost/bookstore}?useSSL=false&allowPublicKeyRetrieval=true
+    driverClassName: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
+    url: ${DB_URL:jdbc:log4jdbc:${database}://localhost/bookstore}?useSSL=false&allowPublicKeyRetrieval=true
     username: ${DB_USER:hql_demo}
     password: ${DB_PASS:hql_demo}
 

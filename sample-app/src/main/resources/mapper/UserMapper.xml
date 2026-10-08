@@ -3,7 +3,7 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="org.slowcoders.hyperql.sample.jdbc.bookstore.mapper.UserMapper">
+<mapper namespace="org.slowcoders.hyperql.sample.hq.bookstore.mapper.UserMapper">
 
     <resultMap id="UserMap" type="org.slowcoders.hyperql.sample.hq.bookstore.UserDto">
         <id     property="id"        column="id"/>
@@ -40,5 +40,81 @@
         DELETE FROM "User"
         WHERE id = #{id}
     </delete>
+
+    <sql id="bookSales_columns">
+            b.id as book_id,
+            b.title,
+            count(*) AS count,
+            max(b.price) * count(*) AS amount,
+            row_number() over (order by count(*) desc) as ranking
+            <if test='"${not_allowed}" != "\${not_allowed}"'>
+                Can not read property!!!
+            </if>
+    </sql>
+
+    <sql id="bookSales">
+        SELECT
+            <if test='"${startDate}" != "\${startDate}"'>
+                b.title as title1,
+            </if>
+            <include refid="bookSales_columns">
+                <property name="p1" value="aaa"/>
+            </include>
+        FROM bookstore.book b
+        LEFT JOIN bookstore.book_order s
+            ON s.book_id = b.id
+        <if test='"${startDate}" != "\${startDate}"'>
+            AND s.order_date >= ${startDate}
+        </if>
+        <if test='"${endDate}" != "\${endDate}"'>
+            AND s.order_date <![CDATA[ >= ]]> ${endDate}
+        </if>
+
+        GROUP BY b.id, b.title
+        order by amount desc
+    </sql>
+
+    <select id="getBookSales" resultType="org.slowcoders.hyperql.sample.hq.bookstore.model.BookSales">
+        <include refid="bookSales">
+            <property name="startDate" value="#{startDate}"/>
+            <property name="endDate" value="#{endDate}"/>
+        </include>
+    </select>
+
+    <sql id="onPromotionPlanChanged">
+        WITH _CHANGED as (
+            select _NEW.*
+            from _NEW, _OLD
+            where _NEW.id = _OLD.id
+                and _NEW.discount_percentage != _OLD.discount_percentage
+        ), _OLD as (
+            select bk$.*
+            from bookstore.book bk$, _CHANGED
+            where bk$.publisher_id = _CHANGED.publisher_id
+        ), _NEW as (
+            update bookstore.book bk$ SET
+                price = bk$.list_price - bk$.list_price * _CHANGED.discount_percentage / 100
+            from _OLD, _CHANGED
+            where bk$.id = _OLD.id
+                and bk$.publisher_id = _CHANGED.publisher_id
+            returning *
+        ), onBookChanged as (
+            <include refid="onBookPriceChanged" />
+        )
+    </sql>
+
+    <sql id="onBookPriceChanged">
+        WITH _OLD_DATA as (
+            select bk$.*
+            from bookstore.book bk$
+            where ${filter}
+        ), _NEW_DATA as (
+            update bookstore.book bk$ SET
+                ${record}
+            from _OLD_DATA
+            where bk$.id = _OLD_DATA.id
+            returning *
+        )
+    </sql>
 
 </mapper>

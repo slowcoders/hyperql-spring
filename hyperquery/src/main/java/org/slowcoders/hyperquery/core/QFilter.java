@@ -1,30 +1,38 @@
 package org.slowcoders.hyperquery.core;
 
-import org.slowcoders.hyperquery.impl.HSchema;
-import org.slowcoders.hyperquery.impl.QCriteria;
+import org.slowcoders.hyperquery.impl.HFilter;
+import org.slowcoders.hyperquery.impl.SqlBuilder;
 
 import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-public class QFilter<T extends QEntity> {
+public class QFilter<T extends QEntity<?>> extends HFilter {
 
-    @Retention(RetentionPolicy.RUNTIME)
-    public @interface Condition {
-        /** condition expression to filtering */
-        String value();
+    public enum LogicalOp {
+        AND, OR, NOT_AND, NOT_OR;
+    }
+
+    public PredicateBuilder createPredicateBuilder(SqlBuilder sqlBuilder) {
+        return null;
     }
 
     @Retention(RetentionPolicy.RUNTIME)
-    public @interface EmbedFilter {
-        /** alias of the joined table or view */
-        String value();
+    public @interface Predicate {
+        /** condition expression to filtering */
+        String value() default "";
+
+        boolean bypassEmptyInput() default true;
+
+        String convertInput() default "";
+
+        String inputType() default "";
     }
 
     @Repeatable(Begin.Stack.class)
     @Retention(RetentionPolicy.RUNTIME)
     public @interface Begin {
-        QCriteria.LogicalOp value();
+        LogicalOp value();
 
         @Retention(RetentionPolicy.RUNTIME)
         @interface Stack {
@@ -35,7 +43,7 @@ public class QFilter<T extends QEntity> {
     @Repeatable(EndOf.Stack.class)
     @Retention(RetentionPolicy.RUNTIME)
     public @interface EndOf {
-        QCriteria.LogicalOp value();
+        LogicalOp value();
 
         @Retention(RetentionPolicy.RUNTIME)
         @interface Stack {
@@ -43,40 +51,8 @@ public class QFilter<T extends QEntity> {
         }
     }
 
-    //==============================================================================//
-
-    private String __sql__;
-    private final HSchema relation;
-
-
-    public QFilter(Class<T> clazz) {
-        this.relation = HSchema.registerSchema(clazz);
+    public interface Validator<T> {
+        boolean isValid(T value);
     }
 
-    public Object getFromStatement() {
-        return this.__sql__;
-    }
-
-    public Object getWhereStatement() {
-        return this.__sql__;
-    }
-
-    public final HSchema getRelation() {
-        return relation;
-    }
-
-
-    /*internal*/ public final void setSql(String sql) {
-        this.__sql__ = sql;
-    }
-
-    public QCriteria buildCriteria() {
-        return QCriteria.buildCriteria(this, "@");
-    }
-
-
-    public String toString() {
-        QCriteria criteria = buildCriteria();
-        return criteria.toString();
-    }
 }

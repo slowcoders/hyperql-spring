@@ -1,0 +1,63 @@
+# Spring Property 적용 우선 순위.
+#  1. **커맨드 라인 인자** (`--spring.datasource.url=...`)
+#  2. **Java 시스템 프로퍼티** (`System.setProperty()`)
+#  3. **OS 환경 변수**
+#  4. **application-{profile}.yml/properties** (프로파일별 설정)
+#  5. --- 로 분리된 경우, 아래 쪽 섹션.
+#  6. **spring.config.import로 임포트된 파일**
+#  7. **application.yml/properties** (기본 설정)
+
+spring:
+  config:
+    import:
+      - db-config.yaml
+
+---
+
+spring.application.name: basecamp
+
+server:
+  port: 8080
+  ## Application 별 시작 주소 설정. 주의) Swagger 와 Actuator 에도 영향을 미침.
+  servlet.contextPath: "/crm"
+  compression.enabled: true
+
+
+
+spring:
+  session:
+    timeout: 3600     # Session timeout.
+
+hpss:
+  auth:
+    jwt-config:
+      header: Authorization
+      secret: aGVsbG8gd29ybGQgbXkgbmFtZSBpcyBzc29uZyBoYWhhaGFoYWhhaGFoYSBydXJ1cnVydXJ1cnVydXJ1ZHNmc2Rmc2Rmc2Rmc2EK # fill in base64 [command: echo {plain_text} | base64]
+      refresh-token-secret: d29ybGQgbXkgbmFtZSBpcyBzc29uZyBoYWhhaGFoYWhhaGFoYSBydXJ1cnVydXJ1cnVydXJ1ZHNmc2Rmc2Rmc2Rmc2FkCg== # it must be different from the access key secret
+      access-token-validity-in-seconds: 3600 # 10 min
+      refresh-token-validity-in-seconds: 86400 # 24 hour # ??? ?? ?? ? 1?
+
+    exclude-urls:
+      - /favicon.ico
+      - /error
+
+      - /actuator/**
+      - /api-docs/**
+      - /v3/api-docs/**
+      - /swagger-ui/**
+      - /swagger-resources/**
+
+      - /v1/auth/login
+      - /v1/auth/register
+
+  rest-template:
+    maxTotal: 5
+    defaultMaxPerRoute: 3000
+    connectionRequestTimeout: 3000
+    connectTimeout: 3000
+    socketTimeout: 3000
+  db-config:
+    main:
+      config: classpath:mybatis-config.xml
+      mapper: classpath*:sql/**/*.xml
+      type-package:

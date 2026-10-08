@@ -18,6 +18,7 @@ sh build_and_run_tutorial.sh mysql
 
 ### See tutorial
 * 참고) Tutorial Page 를 Open 할 때 Sample DB 가 초기화 됨.
+
 http://localhost:7007
 
 ### OpenAPI

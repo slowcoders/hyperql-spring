@@ -1,27 +1,36 @@
 package org.slowcoders.hyperql.sample.hq.bookstore;
 
 import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 import org.slowcoders.hyperql.sample.hq.bookstore.model.Book;
-import org.slowcoders.hyperql.sample.hq.bookstore.model.BookRepository;
 import org.slowcoders.hyperquery.core.QColumn;
+import org.slowcoders.hyperquery.core.QFilter;
 import org.slowcoders.hyperquery.core.QRecord;
 
-import java.time.OffsetDateTime;
+import java.time.LocalDate;
 
 @Getter
+@ToString
 public class BookDto implements QRecord<Book> {
 
-    @QColumn("id")
     private Long id;
 
-    @QColumn("title")
     private String title;
 
-    @QColumn("@author_.name")
+    @QColumn(name = "@author.name")
     private String author;
 
-    private OffsetDateTime createdAt;
+//    @QColumn("@weeklySales")
+//    private List<HqBookController.BookSalesFilter> weeklySales;
 
+    @Getter @Setter
+    public static class Filter extends QFilter<Book> {
+        private LocalDate startDate;
+        private LocalDate endDate;
+        @Predicate("@.id = ?")
+        private int id;
+    }
 }
 
 

@@ -67,7 +67,9 @@ public abstract class JdbcMetadataController {
                 case Javascript:
                     return dumpJsonSchemas(namespace);
                 case SpringJPA:
-                    return dumpJpaSchemas(namespace);
+                    return dumpJpaSchemas(namespace, true);
+                case HyperEntity:
+                    return dumpJpaSchemas(namespace, false);
                 default:
                     SourceWriter sw = new SourceWriter('"');
                     for (String table : storage.getTableNames(namespace)) {
@@ -95,7 +97,7 @@ public abstract class JdbcMetadataController {
         else {
             if (schema instanceof JdbcSchema) {
                 SourceWriter sb = new SourceWriter('\"');
-                ((JdbcSchema)schema).dumpJPAEntitySchema(sb,true);
+                ((JdbcSchema)schema).dumpJPAEntitySchema(sb,true, type == SchemaType.SpringJPA);
                 source = sb.toString();
             }
             else {
@@ -105,22 +107,28 @@ public abstract class JdbcMetadataController {
         return source;
     }
 
-    private String dumpJpaSchemas(String namespace) throws Exception {
+    private String dumpJpaSchemas(String namespace, boolean isJPA) throws Exception {
         SourceWriter sb = new SourceWriter('\"');
-        JdbcSchema.dumpJPAHeader(sb, true);
+        JdbcSchema.dumpJPAHeader(sb, true, isJPA);
         sb.write("public interface " + namespace + " {\n\n");
         sb.incTab();
         for (String tableName : storage.getTableNames(namespace)) {
+            try {
             QSchema schema = getSchema(namespace, tableName);
             if (schema instanceof JdbcSchema) {
-                ((JdbcSchema) schema).dumpJPAEntitySchema(sb,false);
+                    ((JdbcSchema) schema).dumpJPAEntitySchema(sb, false, isJPA);
                 sb.write("\n\n");
+            }
+        }
+            catch (Exception e) {
+                e.printStackTrace();
             }
         }
         sb.decTab();
         sb.writeln("}");
         return sb.toString();
     }
+
     private String dumpJsonSchemas(String namespace) throws Exception {
         SourceWriter sb = new SourceWriter('\'');
         for (String tableName : storage.getTableNames(namespace)) {
@@ -159,6 +167,7 @@ public abstract class JdbcMetadataController {
         Simple,
         Javascript,
         SpringJPA,
+        HyperEntity,
         // FormModel
     }
 }

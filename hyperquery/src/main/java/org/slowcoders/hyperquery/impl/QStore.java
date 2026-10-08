@@ -2,121 +2,316 @@ package org.slowcoders.hyperquery.impl;
 
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.apache.ibatis.builder.xml.XMLIncludeTransformer;
-import org.apache.ibatis.mapping.BoundSql;
-import org.apache.ibatis.mapping.MappedStatement;
-import org.apache.ibatis.mapping.ResultMap;
-import org.apache.ibatis.mapping.SqlSource;
+import org.apache.ibatis.mapping.*;
+import org.apache.ibatis.parsing.GenericTokenParser;
 import org.apache.ibatis.parsing.XNode;
-import org.apache.ibatis.scripting.xmltags.XMLScriptBuilder;
+import org.apache.ibatis.reflection.MetaObject;
+import org.apache.ibatis.scripting.xmltags.*;
 import org.apache.ibatis.session.Configuration;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.slowcoders.hyperquery.core.*;
+import org.slowcoders.hyperquery.util.KVEntity;
+import org.slowcoders.hyperquery.util.SqlWriter;
+import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.ConnectionCallback;
+import org.springframework.jdbc.datasource.DataSourceUtils;
+import org.springframework.util.ClassUtils;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
+import javax.sql.DataSource;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.sql.Connection;
 import java.util.*;
 
-public class QStore<E extends QEntity> {
+public class QStore implements ViewResolver, JdbcConnector {
     private final Configuration configuration;
     private final SqlSessionTemplate sqlSessionTemplate;
-    private final List<ColumnMapping> columnMappings = new ArrayList<>();
-    private final Set<String> joinAliases = new HashSet<>();
-    private final Set<Class<QRecord>> usedTables = new HashSet<>();
+    private final Class<? extends QRepository> repositoryType;
 
-    static final Map<String, HSchema> joinMap = new HashMap<>();
-    private final Class<? extends QRepository<E>> repositoryType;
-
-    static class ColumnMapping {
-        private final String columnName;
-        private final String fieldName;
-        public ColumnMapping(String columnName, String fieldName) {
-            this.columnName = columnName;
-            this.fieldName = fieldName;
-        }
-    }
-    public QStore(Configuration configuration, SqlSessionTemplate sqlSessionTemplate, Class<? extends QRepository<E>> repositoryType) {
+    public QStore(Configuration configuration, SqlSessionTemplate sqlSessionTemplate, QRepository repository) {
         this.configuration = configuration;
         this.sqlSessionTemplate = sqlSessionTemplate;
-        this.repositoryType = repositoryType;
-    }
-
-    private void addSelection(Class<?> clazz, String propertyPrefix, String fromAlias) {
-        for (Field f : clazz.getDeclaredFields()) {
-            QColumn anno = f.getAnnotation(QColumn.class);
-            if (anno == null) continue;
-            String columnName = anno.value();
-            Class<?> propertyType = f.getType();
-            if (!QRecord.class.isAssignableFrom(propertyType)) {
-                int idx_dot = columnName.indexOf(".");
-                if (idx_dot > 0) {
-                    String alias = columnName.substring(0, idx_dot);
-                    joinAliases.add(alias);
-                } else {
-                    columnName = fromAlias + '.' + columnName;
-                }
-                columnMappings.add(new ColumnMapping(columnName, propertyPrefix + f.getName()));
-            } else if (!usedTables.contains(propertyType)) {
-                // join loop 방지.
-                usedTables.add((Class<QRecord>) propertyType);
-                String alias = propertyPrefix.isEmpty() ? columnName : fromAlias + '@' + columnName;
-                this.addSelection(propertyType, propertyPrefix + f.getName() + '.', alias);
-                joinAliases.add(alias);
+//        this.schema = HSchema.loadSchema(this.getClass(), true, this);
+        Class<?> repositoryType = null;
+        for (Class<?> iface : ClassUtils.getUserClass(repository).getInterfaces()) {
+            if (QRepository.class.isAssignableFrom(iface)) {
+                repositoryType = (Class) iface;
+                break;
             }
+        }
+        this.repositoryType = (Class<? extends QRepository>) repositoryType;
+        if (repositoryType == null) {
+            throw new IllegalArgumentException("Repository must implement QRepository interface.");
         }
     }
 
-    public <R extends QRecord<E>> R selectOne(Class<R> resultType, QFilter<E> filter) {
+    public <E extends QEntity<E>, R extends QRecord<E>> R selectOne(Class<R> resultType, QFilter<E> filter) {
         List<R> res = selectList(resultType, filter);
         if (res.isEmpty()) return null;
         if (res.size() > 1) throw new IllegalStateException("Too many rows returned.");
         return res.get(0);
     }
 
-    public <R extends QRecord<E>> List<R> selectList(Class<R> resultType, QFilter<E> filter) {
-        this.addSelection(resultType, "", "@");
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("select ");
-        for (ColumnMapping col : columnMappings) {
-            sb.append(col.columnName).append(" as \"").append(col.fieldName).append("\",\n");
-        }
-        sb.setLength(sb.length() - 2);
-        sb.append('\n');
-
-        HSchema relation = filter.getRelation();
-        sb.append("from ").append(relation.getJoinTarget()).append(" @").append('\n');
-        for (String alias : joinAliases) {
-            QJoin join = relation.getJoin(alias);
-            sb.append("left join ").append(join.getTargetRelation().getQuery()).append(" ").append(alias);
-            // replace #*. -> "@" + join + "."
-            sb.append("\n on ").append(join.getJoinCriteria().replace("#", alias)).append('\n');
+    public <E extends QEntity<E>, R extends QRecord<E>> List<R> selectList(HModel view, Class<R> resultType, QFilter<E> filter) {
+        HSchema viewSchema = view.loadSchema(this);
+        if (filter != null && loadSchema(filter.getClass(), false) != viewSchema) {
+            throw new IllegalArgumentException("Filter type is not related to result type.");
         }
 
-        String sql = sb.append("where ").append(filter.toString()).toString();
-        int idxAlias = 0;
-        for (String join : joinAliases) {
-            String alias = join.substring(join.lastIndexOf('@') + 1);
-            sql = sql.replaceAll(join + "\\b", alias + "_" + (++idxAlias));
-        }
-        sql = sql.replaceAll("@(?=\\W)", "t_0");
-        filter.setSql(sql);
-        String id = registerMapper(null, filter.getRelation(), resultType);
+        SqlBuilder gen = new SqlBuilder(view, this);
+        HQuery query = gen.buildSelect(resultType, filter);
 
-        Object res = sqlSessionTemplate.selectList(id, filter);
-        return (List) res;
+        String id = registerMapper(query.with, resultType);
+
+        HFilter._sql.set(query.query);
+        HFilter._session.set(getCurrentSessionInfo());
+
+        try {
+            String sql = query.toString();
+            Object res = sqlSessionTemplate.selectList(id, filter);
+            return (List) res;
+        } catch (RuntimeException e) {
+            System.out.println("Execution failed\n" + query.toString());
+            throw e;
+        }
     }
 
-    String registerMapper(SqlSource sqlSource, HSchema relation, Class<?> resultType) {
+    public <E extends QEntity<E>, R extends QRecord<E>> List<R> selectList(Class<R> resultType, QFilter<E> filter) {
+        return selectList(loadSchema(resultType, false), resultType, filter);
+    }
+
+    public <E extends QEntity<E>> int insert(QEntity<E> entity, boolean updateOnConflict) {
+        HSchema schema = loadSchema(entity.getClass(), false);
+        SqlBuilder gen = new SqlBuilder(schema, this);
+        String query = gen.buildInsert(entity, updateOnConflict);
+
+        String id = repositoryType.getName() + ".__insert__";
+
+        QRecord._sql.set(query);
+        QRecord._session.set(getCurrentSessionInfo());
+
+        try {
+            int res = sqlSessionTemplate.insert(id, entity);
+            return res;
+        } catch (RuntimeException e) {
+            System.out.println("Execution failed\n" + query.toString());
+            throw e;
+        }
+    }
+
+    @Override
+    public HSchema loadSchema(Class<?> entityType, boolean isEntity) {
+        return HSchema.loadSchema(entityType, isEntity, this);
+    }
+
+    @Override
+    public HSchema getTargetSchema(QJoin join) {
+        if (join == null) {
+            throw new IllegalArgumentException("join must not be null.");
+        }
+        return join.getTargetRelation(this).loadSchema(this);
+    }
+
+    @Override
+    public QJoin getJoin(HModel model, String alias) {
+        return model.getJoin(alias, this);
+    }
+
+    @Override
+    public MetaObject newMetaObject(Object obj) {
+        return configuration.newMetaObject(obj);
+    }
+
+    public <E extends QEntity<E>> int update(QUniqueRecord<E> entity) {
+        HSchema schema = loadSchema(entity.getClass(), false);
+        SqlBuilder gen = new SqlBuilder(schema, this);
+        String query = gen.buildUpdate(entity);
+
+        String id = repositoryType.getName() + ".__update__";
+
+        QRecord._sql.set(query);
+        QRecord._session.set(getCurrentSessionInfo());
+
+        try {
+            int res = sqlSessionTemplate.insert(id, entity);
+            return res;
+        } catch (RuntimeException e) {
+            System.out.println("Execution failed\n" + query.toString());
+            throw e;
+        }
+    }
+
+    private void deleteNested(HSchema schema, String pkFilter, SqlWriter sbQuery, int depth) {
+        sbQuery.write(depth == 0 ? "with " : ", ");
+        String cte_to_delete = "\"TO_DELETE." + schema.getTableName() + "\"";
+        sbQuery.write(cte_to_delete).writeln(" as (");
+        sbQuery.incTab().write(pkFilter);
+        sbQuery.decTab().write("\n)\n");
+
+        for (QJoin join : schema.getCascadedJoins()) {
+            if (!join.isCascaded()) continue;
+            HSchema targetSchema = loadSchema( join.getTargetRelation(this).getEntityType(), true);
+            String joinOn = join.getEncodedExpr();
+            joinOn = joinOn.replaceAll("#", "t_0");
+            joinOn = joinOn.replaceAll("@", "c");
+            String joinFilter = "select " + targetSchema.getCommaSeperatedPrimaryKeys() + "\nfrom " + targetSchema.getTableName() + " t_0\n"
+                    + "inner join " + cte_to_delete + " c\n on (" + joinOn + ")" ;
+            deleteNested(targetSchema, joinFilter, sbQuery, depth + 1);
+        }
+        if (depth > 0) {
+            sbQuery.write(", do_delete_" + depth + " as (\n");
+            sbQuery.incTab();
+        }
+        sbQuery.write("delete from ").writeln(schema.getTableName())
+                .write("where (").write(schema.getCommaSeperatedPrimaryKeys()).write(") in (\n")
+                .incTab().write("select ").write(schema.getCommaSeperatedPrimaryKeys())
+                .write("\nfrom ").write(cte_to_delete)
+                .decTab().write("\n)\n");
+        if (depth > 0) {
+            sbQuery.decTab();
+            sbQuery.write(")\n");
+        }
+    }
+
+    public <E extends QEntity<E>> int deleteNested(QFilter<E> filter) {
+        HSchema schema = loadSchema(filter.getClass(), false);
+        SqlBuilder gen = new SqlBuilder(schema, this);
+        HQuery hq = gen.buildSelect(null, filter);
+        SqlWriter sbQuery = new SqlWriter();
+
+
+        deleteNested(schema, hq.query, sbQuery, 0);
+
+        String id = repositoryType.getName() + ".__deleteNested__";
+
+        QRecord._sql.set(sbQuery.toString());
+        QRecord._session.set(getCurrentSessionInfo());
+
+        try {
+            int res = sqlSessionTemplate.delete(id, filter);
+            return res;
+        } catch (RuntimeException e) {
+            System.out.println("Execution failed\n" + hq.query);
+            throw e;
+        }
+
+    }
+
+    public <E extends QEntity<E>> int updateNested(QUniqueRecord<E> entity) {
+        update(entity);
+
+        HSchema schema = loadSchema(entity.getClass(), false);
+        try {
+            for (Field f : entity.getClass().getDeclaredFields()) {
+                if (Modifier.isStatic(f.getModifiers()) ||
+                        HSchema.Helper.isTransient(f)) continue;
+
+                Class<? extends QRecord<?>> elementType = HSchema.Helper.getElementType(f);
+                if (QRecord.class.isAssignableFrom(elementType) && Collection.class.isAssignableFrom(f.getType())) {
+                    String columnExpr = schema.getColumnExpr(f);
+                    QJoin join = schema.getJoin(columnExpr, this);
+                    if (join != null) {
+                        f.setAccessible(true);
+                        Collection<E> subEntities = (Collection<E>) f.get(entity);
+                        updateCascadedEntities(entity, join, subEntities);
+                    }
+                }
+            }
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+        return 0;
+    }
+
+
+    public <E extends QEntity<E>> List<E> updateCascadedEntities(Object parentEntity, QJoin join, Collection<E> subEntities) {
+        HSchema schema = join.getTargetRelation(this).loadSchema(this);
+        SqlBuilder gen = new SqlBuilder(schema, this);
+        String query = gen.buildUpdateCascaded2(join, subEntities);
+
+        String id = registerMapper(null, schema.getEntityType());
+
+
+        HFilter._sql.set(query);
+        HFilter._session.set(getCurrentSessionInfo());
+
+        try {
+            KVEntity param = KVEntity.of("data", subEntities);
+            param.put("__sql__", query);
+            param.put("parent", parentEntity);
+            List<E> res = sqlSessionTemplate.selectList(id, param);
+            return res;
+        } catch (RuntimeException e) {
+            System.out.println("Execution failed\n" + query.toString());
+            throw e;
+        }
+    }
+    public Object getCurrentSessionInfo() {
+        return null;
+    }
+
+    private ResultMap createNestedResultMap(Class<?> clazz, String resultMapId, String propertyPrefix) {
+        List<ResultMapping> resultMappings = new ArrayList<>();
+
+        for (Field f : clazz.getDeclaredFields()) {
+
+            if (HSchema.Helper.isCollectionType(f)) {
+                // 1:N Collection 매핑 처리
+                Class<?> listItemType = HSchema.Helper.getElementType(f); // List의 제네릭 타입 추출 (예: HpcaTransactionPost)
+
+                // 자식 엔티티를 위한 중첩 ResultMap 생성/참조
+                String nestedMapId = resultMapId + "." + f.getName();
+                ResultMap nestedMap = createNestedResultMap(listItemType, nestedMapId, propertyPrefix + f.getName() + '.');
+                if (!configuration.hasResultMap(nestedMapId)) {
+                    configuration.addResultMap(nestedMap);
+                }
+
+                ResultMapping mapping = new ResultMapping.Builder(configuration, f.getName())
+                        .javaType(f.getType())
+                        .notNullColumns(nestedMap.getMappedColumns())
+                        .columnPrefix(f.getName() + '.')
+                        .nestedResultMapId(nestedMapId) // 핵심: 자식 매핑 ID 연결
+                        .build();
+                resultMappings.add(mapping);
+            } else if (true || propertyPrefix.isEmpty() /* top level only ?? */) {
+                String columnName = HSchema.Helper.getColumnName(f); // @TColumn 등에서 컬럼명 추출
+                if (columnName == null) continue;
+                // 일반 컬럼 매핑 (ID 또는 Result)
+                boolean isPK = HSchema.Helper.isUniqueKey(f);
+                ResultMapping mapping = new ResultMapping.Builder(configuration, f.getName(), f.getName(), f.getType())
+                        .flags(isPK ? Collections.singletonList(ResultFlag.ID) : Collections.emptyList())
+                        .build();
+                resultMappings.add(mapping);
+            }
+        }
+
+        return new ResultMap.Builder(configuration, resultMapId, clazz, resultMappings, true).build();
+    }
+    
+    String registerMapper(XNode sqlNode, Class<?> resultType) {
         String id = repositoryType.getName() + ".__select__." + resultType.getName();
 
         if (!configuration.hasStatement(id)) {
-            ResultMap inlineResultMap = new ResultMap.Builder(configuration, id + "-Inline", resultType,
-                    new ArrayList<>(), null).build();
-            List<ResultMap> __resultMaps = new ArrayList<>();
-            __resultMaps.add(inlineResultMap);
 
             String root_id = repositoryType.getName() + ".__select__";
             MappedStatement root_ms = configuration.getMappedStatement(root_id);
-            if (sqlSource == null) sqlSource = root_ms.getSqlSource();
+
+            SqlSource sqlSource;
+            if (sqlNode == null) {
+                sqlSource = root_ms.getSqlSource();
+            } else {
+                sqlSource = new XMLScriptBuilder(configuration, sqlNode).parseScriptNode();
+            }
+
+            ResultMap inlineResultMap = createNestedResultMap(resultType, id + "-Inline", "");
+            List<ResultMap> __resultMaps = new ArrayList<>();
+            __resultMaps.add(inlineResultMap);
+
             MappedStatement.Builder builder = new MappedStatement.Builder(configuration, id, sqlSource, root_ms.getSqlCommandType())
                     .resource(root_ms.getResource())
                     .fetchSize(root_ms.getFetchSize())
@@ -142,63 +337,79 @@ public class QStore<E extends QEntity> {
         return id;
     }
 
-    public String getSqlNode(Class<?> mapperClass, String sqlFragmentId) {
-        // <include> 처리.
-        String mapperId = mapperClass.getName() + "." + sqlFragmentId;
-        MapperBuilderAssistant builderAssistant = new MapperBuilderAssistant(configuration, mapperClass.getName() + ".???");
-        XMLIncludeTransformer includeParser = new XMLIncludeTransformer(configuration, builderAssistant);
-        builderAssistant.setCurrentNamespace(mapperClass.getName());
-
-        XNode fr = configuration.getSqlFragments().get(mapperId);
-        includeParser.applyIncludes(fr.getNode());
-        return fr.getStringBody();
-    }
-
-    public void getViewMapper(Class<?> mapperClass, Class<? extends QRecord<?>> resultType) throws Exception {
-//        Class<?> mapperClass = null // UserMapper.class;
-        String mapperName = "blockDetailOnDate";
-        HashMap<String, Object> mapperParams = new HashMap<>();
-        mapperParams.put("selections", "*");
-        mapperParams.put("date", "2025-02-08");
-        String mapperId = mapperClass.getName() + "." + mapperName;
-
+    public Object resolveView(String namespace, String sqlFragmentId, Map<String, String> properties) {
+        String mapperId = namespace + "." + sqlFragmentId;
         if (configuration.hasStatement(mapperId)) {
-            MappedStatement ms = configuration.getMappedStatement(mapperId);
-            SqlSource ss = ms.getSqlSource();
-            ss.getBoundSql(mapperParams);
             throw new IllegalArgumentException("Only <sql> fragments can be used to create View.");
-        } else {
-
-            // <include> 처리.
-            MapperBuilderAssistant builderAssistant = new MapperBuilderAssistant(configuration, mapperClass.getName() + ".???");
-            XMLIncludeTransformer includeParser = new XMLIncludeTransformer(configuration, builderAssistant);
-            builderAssistant.setCurrentNamespace(mapperClass.getName());
-
-            XNode fr = configuration.getSqlFragments().get(mapperId);
-            includeParser.applyIncludes(fr.getNode());
-
-            // <parameter 처리>
-            SqlSource sqlSource;
-            if (false) {
-//                sqlSource = new ScriptBuilder(configuration, fr).parseScriptNode(mapperParams);
-            }
-            else {
-                sqlSource = new XMLScriptBuilder(configuration, fr).parseScriptNode();
-            }
-
-            final boolean checkDynamicParameter = true;
-            if (checkDynamicParameter) {
-                BoundSql bsql = sqlSource.getBoundSql(mapperParams);
-                if (!bsql.getParameterMappings().isEmpty()) {
-                    throw new IllegalArgumentException("View statement should not contain dynamic parameters. " + bsql.getParameterMappings());
-                }
-            }
-
-            mapperId = registerMapper(sqlSource, HSchema.registerSchema(null), resultType);
         }
 
-        Object res = sqlSessionTemplate.selectList(mapperId, mapperParams);
+        XNode fr = configuration.getSqlFragments().get(mapperId);
+        if (fr == null) {
+            throw new IllegalArgumentException("<sql> fragments is not found. " + mapperId);
+        }
 
-        System.out.println(res);
+        Document doc = fr.getNode().getOwnerDocument();
+        Element include = doc.createElement("include");
+        include.setAttribute("refid", mapperId);
+        for (Map.Entry<String, String> entry : properties.entrySet()) {
+            Element property = doc.createElement("property");
+            property.setAttribute("name", entry.getKey());
+            property.setAttribute("value", entry.getValue());
+            include.appendChild(property);
+        }
+        Element sqlNode = doc.createElement("sql");
+        include.setAttribute("id", mapperId + "-sql");
+        sqlNode.appendChild(include);
+
+        // <include> 처리.
+        MapperBuilderAssistant builderAssistant = new MapperBuilderAssistant(configuration, "???");
+        builderAssistant.setCurrentNamespace(namespace);
+        XMLIncludeTransformer includeParser = new XMLIncludeTransformer(configuration, builderAssistant);
+        includeParser.applyIncludes(sqlNode);
+        if (isDynamicXmlQuery(sqlNode)) {
+            return sqlNode;
+        }
+
+        if (false) {
+            // BoundSql bsql = sqlSource.getBoundSql(mapperParams);
+            mapperId = registerMapper(fr, /*resultType*/null);
+            Object res = sqlSessionTemplate.selectList(mapperId, /*mapperParams*/null);
+            //System.out.println(res);
+        }
+
+        String sql = fr.getNode().getTextContent();
+        sql = new GenericTokenParser("${", "}", properties::get).parse(sql);
+        return sql;
+    }
+
+    private boolean isDynamicXmlQuery(Node node) {
+        switch (node.getNodeName()) {
+            case "if": case "choose": case "when": case "foreach": case "bind":
+                return true;
+        }
+        NodeList children = node.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            if (isDynamicXmlQuery(children.item(i)))
+                return true;
+        }
+        return false;
+    }
+
+    @Override
+    public <T> T execute(ConnectionCallback<T> action) throws DataAccessException {
+        DataSource dataSource = sqlSessionTemplate
+                .getSqlSessionFactory()
+                .getConfiguration()
+                .getEnvironment()
+                .getDataSource();
+
+        Connection con = DataSourceUtils.getConnection(dataSource);
+        try {
+            return action.doInConnection(con);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            DataSourceUtils.releaseConnection(con, dataSource);
+        }
     }
 }
