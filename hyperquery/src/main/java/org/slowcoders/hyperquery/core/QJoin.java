@@ -1,0 +1,66 @@
+package org.slowcoders.hyperquery.core;
+
+import org.slowcoders.hyperquery.impl.AliasNode;
+import org.slowcoders.hyperquery.impl.HModel;
+import org.slowcoders.hyperquery.impl.HSchema;
+import org.slowcoders.hyperquery.impl.JdbcConnector;
+
+public class QJoin extends AliasNode {
+
+    public enum JoinType {
+        Inner,
+        InnerLateral,
+        Left,
+        LeftLateral,
+        Right,
+        Cross
+    }
+    private HModel target;
+    private final boolean toUnique;
+
+    private boolean cascaded;
+
+    private Class<? extends QEntity<?>> viewType;
+
+    // Cross Join 은 지원하지 읺는다.
+    protected QJoin(HModel inlineView, String joinOn, boolean toUnique) {
+        super(joinOn);
+        this.viewType = HiddenView.class;
+        this.target = inlineView;
+        this.toUnique = toUnique;
+    }
+
+    protected QJoin(Class<? extends QEntity<?>> viewType, String joinOn, boolean toUnique) {
+        super(joinOn);
+        this.viewType = viewType;
+        this.toUnique = toUnique;
+    }
+
+    public String getJoinCriteria() {
+        return super.getEncodedExpr();
+    }
+    public boolean isToUnique() { return toUnique; }
+
+    public final boolean isCascaded() {
+        return cascaded;
+    }
+
+    public static QJoin cascade(Class<? extends QEntity<?>> recordType, String joinOn) {
+        QJoin join = new QJoin(recordType, joinOn, false);
+        join.cascaded = true;
+        return join;
+    }
+    public HModel getTargetRelation(JdbcConnector dbConn) {
+        if (target == null) {
+            target = HSchema.loadSchema(viewType, false, dbConn);
+        }
+        return target;
+    }
+
+    public static QJoin of(Class<? extends QEntity<?>> recordType, String joinOn) {
+        return new QJoin(recordType, joinOn, false);
+    }
+
+    @QFrom("")
+    private static class HiddenView implements QEntity<HiddenView> {}
+}

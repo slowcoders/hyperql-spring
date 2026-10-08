@@ -1,0 +1,497 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="hpms.core">
+                    <sql id="selectBookingOccupancyDetails">
+                                                    ------ selectBookingOccupancyDetails {{
+                                                        select HBDD.*
+                                                        <if test='"${_includeDeductInfo}" == "Y"' >
+                                                            , case when room_booking_date <![CDATA[ <= ]]> greatest(departure_date - 1, arrival_date)
+                                                                    then BTC._deduct_yn else null end as _deduct_yn
+                                                        </if>
+                                                        <if test='"${_includeOccupancyDetail}" == "Y"' >
+                                                            , case when (case when HBB.arrival_date != HBB.departure_date
+                                                                                then HBB.departure_date != HBDD.room_booking_date
+                                                                                else DAY_USE._is_occ_day_use
+                                                                         end)                                         then 'Y' else 'N' end as _occupied_yn
+                                                            , case when HBB.arrival_date   = HBB.departure_date       then 'Y' else 'N' end as _day_use_yn
+                                                            , case when HBB.arrival_date   = HBDD.room_booking_date   then 'Y' else 'N' end as _due_in_yn
+                                                            , case when HBB.departure_date = HBDD.room_booking_date   then 'Y' else 'N' end as _due_out_yn
+                                                            , case when HBB.departure_date != HBDD.room_booking_date
+                                                                            or HBB.arrival_date = HBB.departure_date  then 'Y' else 'N' end as _in_house_yn
+                                                            , coalesce(adult_count, 0) + coalesce(child_count, 0)                           as _person_count
+                                                        </if>
+                                                        from hpms.hpbk_booking_daily_detail HBDD
+                                                            join hpms.hpbk_booking_basic HBB
+                                                                on  HBB.chain_id    = HBDD.chain_id
+                                                                and HBB.property_id = HBDD.property_id
+                                                                and HBB.booking_seq = HBDD.booking_seq
+                                                            join hpms.hpbk_room_type_code RTC
+                                                                 on  HBDD.chain_id            = RTC.chain_id
+                                                                 and HBDD.property_id         = RTC.property_id
+                                                                 and HBDD.room_type_code      = RTC.room_type_code
+                                                                 and RTC.pseudo_room_type_yn != 'Y'
+                                                        <if test='"${_includeOccupancyDetail}" == "Y"' >
+                                                            left join (
+                                                                select *, coalesce(setting_value, 'N') = 'Y'  as _is_occ_day_use
+                                                                from fwcm.fwcm_property_setting
+                                                                where property_setting_code = 'HPBK_DAY_USE_IS_COUNTED_IN_OCC_YN'
+                                                            ) DAY_USE
+                                                                on DAY_USE.chain_id    = HBDD.chain_id
+                                                                and DAY_USE.property_id = HBDD.property_id
+                                                        </if>
+                                                        <if test='"${_includeDeductInfo}" == "Y"' >
+                                                            left join (
+                                                                select *, coalesce(cd.reference_character_value1, 'N') as _deduct_yn
+                                                                from fwcm.fwcm_cd_detail cd
+                                                                where cd.common_cd   = 'BOOKING_TYPE_CD'
+                                                            ) BTC
+                                                                on  BTC.chain_id = HBDD.chain_id
+                                                                and BTC.property_id = HBDD.property_id
+                                                                and BTC.detail_cd = HBB.booking_type_cd
+                                                        </if>
+                                                        where true
+                                                            and HBB.booking_status_cd in ('BOOKED','CHECKED_IN','CHECKED_OUT')
+                                                        <if test='"${_includeOccupancyDetail}" != "Y"' >
+                                                            and HBDD.room_booking_date between HBB.arrival_date and GREATEST(HBB.departure_date - 1, HBB.arrival_date)
+                                                        </if>
+                                                        <if test='"${_includeOccupancyDetail}" == "Y"' >
+                                                            and HBDD.room_booking_date between HBB.arrival_date and HBB.departure_date
+                                                        </if>
+                                                    ------ }} selectBookingOccupancyDetails
+                    </sql>
+
+                    <sql id="selectOccupiedBookingDetails_withDeductInfo">
+                        <include refid="hpms.core.selectBookingOccupancyDetails">
+                            <property name="_includeDeductInfo" value="Y"/>
+                        </include>
+                    </sql>
+
+                    <sql id="selectBlockBasic_withDeductInfo">
+                                            ------ selectBlockBasic_withDeductInfo {{
+                                                select HBLB.*
+                                                     , HBLSC._deduct_yn
+                                                from hpms.hpbk_block_basic HBLB
+                                                    left join (
+                                                        select HBLSC.*
+                                                            , case when RSTC.reference_character_value1 = 'DEDUCT' then 'Y' else 'N' end as _deduct_yn
+                                                        from hpms.hpbk_block_status_code HBLSC
+                                                            join fwcm.fwcm_cd_detail RSTC
+                                                                on  RSTC.chain_id = '00000'
+                                                                and RSTC.property_id = '00000'
+                                                                and RSTC.common_cd = 'ROOM_STATUS_TYPE_CD'
+                                                                and RSTC.reference_character_value1 in ('DEDUCT', 'NON-DEDUCT')
+                                                        where RSTC.detail_cd = HBLSC.room_status_type_cd
+                                                    ) HBLSC
+                                                        on  HBLB.chain_id = HBLSC.chain_id
+                                                        and HBLB.property_id = HBLSC.property_id
+                                                        and HBLB.block_status_cd = HBLSC.block_status_code
+                                                where HBLB.inactive_yn = 'N'
+                                            ------ }} selectBlockBasic_withDeductInfo
+                    </sql>
+
+                    <sql id="selectBlockDetails_withPickupCount">
+                                            ------ selectBlockDetails_withPickupCount {{
+                                                <!-- current_block_room_count 와 pickup_block_room_count 값을 실시간으로 보정한다. -->
+                                                select block_detail_seq, chain_id, property_id, block_id, room_type_code, block_date, original_block_room_count
+                                                    , cut_off_block_room_count, shoulder_yn, addon_room_rate, one_person_room_rate, two_person_room_rate, three_person_room_rate
+                                                    , four_person_room_rate, contract_block_room_count, one_person_room_count, two_person_room_count, three_person_room_count
+                                                    , four_person_room_count, block_cut_off_date, create_user_id, create_datetimetz, update_user_id, update_datetimetz
+                                                    , coalesce(BKDD._pickup_count, 0)                        as pickup_block_room_count
+                                                    , greatest(BKDD._pickup_count, current_block_room_count) as current_block_room_count
+                                                from hpms.hpbk_block_detail HBLD
+                                                    left join lateral (
+                                                        select sum(room_count) as _pickup_count
+                                                        from (
+                                                            <include refid="hpms.core.selectBookingOccupancyDetails">
+                                                                <property name="_includeDeductInfo" value="N"/>
+                                                                <property name="_includeOccupancyDetail" value="N"/>
+                                                            </include>
+                                                        ) BKDD
+                                                        where BKDD.chain_id = HBLD.chain_id
+                                                            and BKDD.property_id = HBLD.property_id
+                                                            and BKDD.block_id = HBLD.block_id
+                                                            and BKDD.room_booking_date = HBLD.block_date
+                                                            and BKDD.room_type_code = HBLD.room_type_code
+                                                        group by BKDD.chain_id, BKDD.property_id, BKDD.room_booking_date, BKDD.block_id, BKDD.room_type_code
+                                                    ) BKDD on true
+                                            ------ }} selectBlockDetails_withPickupCount
+                    </sql>
+
+                    <sql id="selectRoomOoo_withTypes">
+                                                ------ selectRoomOoo_withTypes {{
+                                                    select HRO.*, HRB.room_type_code
+                                                    from hpms.hphk_room_ooo HRO
+                                                        , hpms.hpbk_room_basic HRB
+                                                    where HRO.inactive_yn    = 'N'
+                                                        and HRO.ooo_status_cd  in ('OUT OF ORDER', 'OUT OF SERVICE')
+                                                        and HRO.chain_id       = HRB.chain_id
+                                                        and HRO.property_id    = HRB.property_id
+                                                        and HRO.room_no        = HRB.room_no
+                                                ------ }} selectRoomOoo_withTypes
+                    </sql>
+
+                    <sql id="selectPhysicalRoomTypes_withCount">
+                                            ------ selectPhysicalRoomTypes_withCount {{
+                                                select RTC.*
+                                                       , (select count(*) as _room_count
+                                                              from hpms.hpbk_room_basic HRB
+                                                              where  HRB.chain_id = RTC.chain_id
+                                                                   and HRB.property_id = RTC.property_id
+                                                                   and HRB.room_type_code = RTC.room_type_code) as _room_count
+                                                from hpms.hpbk_room_type_code RTC
+                                                where   RTC.inactive_yn         = 'N'
+                                                    and RTC.pseudo_room_type_yn != 'Y'
+                                            ------ }} selectPhysicalRoomTypes_withCount
+                    </sql>
+
+                    <sql id="selectDayUseOccupancyYn">
+                            select coalesce(setting_value, 'N') = 'Y'  as _is_occ_day_use
+                            from fwcm.fwcm_property_setting FPS
+                            where FPS.property_setting_code = 'HPBK_DAY_USE_IS_COUNTED_IN_OCC_YN'
+                                and FPS.chain_id    = #{chainId}
+                                and FPS.property_id = #{propertyId}
+                    </sql>
+
+                    <!-- daily statistic -->
+
+
+                    <sql id="selectBookingDetailStatistics_daily">
+                                    ------ selectBookingDetailStatistics_daily {{
+                                        select HBDD.chain_id, HBDD.property_id, HBDD.room_booking_date, HBDD.room_type_code
+                                            , sum(room_count)    filter (where _deduct_yn = 'Y')                        as deduct
+                                            , sum(room_count)    filter (where _deduct_yn = 'N')                        as non_deduct
+                                        <if test='"${_includeOccupancyDetail}" == "Y"' >
+                                            , sum(room_count)    filter (where _deduct_yn = 'Y' and _due_in_yn   = 'Y') as arrival
+                                            , sum(room_count)    filter (where _deduct_yn = 'Y' and _due_out_yn  = 'Y') as departure
+                                            , sum(room_count)    filter (where _deduct_yn = 'Y' and _day_use_yn  = 'Y') as day_use
+                                            , sum(_person_count) filter (where _deduct_yn = 'Y' and _due_in_yn   = 'Y') as arrival_person
+                                            , sum(_person_count) filter (where _deduct_yn = 'Y' and _due_out_yn  = 'Y') as departure_person
+                                            , sum(_person_count) filter (where _deduct_yn = 'Y' and _day_use_yn  = 'Y') as day_use_person
+                                            , sum(adult_count)   filter (where _deduct_yn = 'Y' and _in_house_yn = 'Y') as adult_in_house
+                                            , sum(child_count)   filter (where _deduct_yn = 'Y' and _in_house_yn = 'Y') as child_in_house
+                                        </if>
+                                        from (
+                                                <include refid="hpms.core.selectOccupiedBookingDetails_withDeductInfo" />
+                                            ) HBDD, _statistic_options _opt
+                                        where HBDD.chain_id = _opt.chainId
+                                                and HBDD.property_id = _opt.propertyId
+                                        group by HBDD.chain_id, HBDD.property_id, HBDD.room_booking_date, HBDD.room_type_code
+                                    ------ }} selectBookingDetailStatistics_daily
+                    </sql>
+
+                    <sql id="selectWaitingStatistics_daily">
+                                    ------ selectWaitingStatistics_daily {{
+                                        select HBDD.chain_id, HBDD.property_id, HBDD.room_booking_date, HBDD.room_type_code
+                                            , count(*)                                                           as waiting
+                                            , sum(coalesce(HBDD.child_count, 0) + coalesce(HBDD.adult_count, 0)) as waiting_person
+                                        from hpms.hpbk_booking_daily_detail HBDD
+                                            cross join hpms.hpbk_booking_basic HBB
+                                            cross join _statistic_options _opt
+                                        where true
+                                            and HBB.chain_id               = HBDD.chain_id
+                                            and HBB.property_id            = HBDD.property_id
+                                            and HBB.booking_seq            = HBDD.booking_seq
+                                            and HBB.booking_status_cd in ('WAITING')
+                                            and (HBB.departure_date > HBDD.room_booking_date or HBB.arrival_date = HBDD.room_booking_date)
+                                            and HBDD.chain_id = _opt.chainId
+                                            and HBDD.property_id = _opt.propertyId
+                                        group by HBDD.chain_id, HBDD.property_id, HBDD.room_booking_date, HBDD.room_type_code
+                                    ------ }} selectWaitingStatistics_daily
+                    </sql>
+
+
+                    <sql id="selectBlockStatistics_daily">
+                                    ------ selectBlockStatistics_daily {{
+                                        select HBLD.chain_id, HBLD.property_id, HBLD.block_date, HBLD.room_type_code
+                                            , sum(current_block_room_count) filter (where _deduct_yn = 'Y')     as deduct
+                                            , sum(pickup_block_room_count)  filter (where _deduct_yn = 'Y')     as deduct_pickup
+                                            , sum(current_block_room_count) filter (where _deduct_yn = 'N')     as non_deduct
+                                            , sum(pickup_block_room_count)  filter (where _deduct_yn = 'N')     as non_deduct_pickup
+                                        from (
+                                                <include refid="hpms.core.selectBlockDetails_withPickupCount" />
+                                            ) HBLD
+                                            join (
+                                                <include refid="hpms.core.selectBlockBasic_withDeductInfo" />
+                                            ) HBLB
+                                                on  HBLB.chain_id = HBLD.chain_id
+                                                and HBLB.property_id = HBLD.property_id
+                                                and HBLB.block_id = HBLD.block_id
+                                            cross join _statistic_options _opt
+                                        where HBLD.chain_id = _opt.chainId
+                                            and HBLD.property_id = _opt.propertyId
+                                            and HBLD.block_date between (_opt.startDate) and (_opt.endDate)
+                                        group by HBLD.chain_id, HBLD.property_id, HBLD.block_date, HBLD.room_type_code
+                                    ------ }} selectBlockStatistics_daily
+                    </sql>
+
+                    <sql id="selectInventoryRoomStatistics_daily">
+                                    ------ selectInventoryRoomStatistics_daily {{
+                                        with calendar as (
+                                            select generate_series(startDate, endDate, '1 day'::interval)::DATE as date
+                                            from _statistic_options
+                                        )
+                                        , RTC as (
+                                            <include refid="hpms.core.selectPhysicalRoomTypes_withCount" />
+                                        )
+                                        , HRO as (
+                                            <include refid="hpms.core.selectRoomOoo_withTypes" />
+                                        )
+                                        select RTC.chain_id, RTC.property_id, calendar.date, RTC.room_class_code, RTC.room_type_code, RTC.display_seq, RTC._room_count
+                                            , count(case when HRO.ooo_status_cd = 'OUT OF ORDER' then true end)    as ooo
+                                            , count(case when HRO.ooo_status_cd = 'OUT OF SERVICE' then true end)  as oos
+                                        from calendar
+                                            cross join RTC
+                                            cross join _statistic_options _opt
+                                            left join HRO
+                                                on  HRO.chain_id = RTC.chain_id
+                                                and HRO.property_id = RTC.property_id
+                                                and HRO.room_type_code = RTC.room_type_code
+                                                and calendar.date between HRO.ooo_start_date and HRO.ooo_end_date
+                                        where RTC.chain_id = _opt.chainId
+                                            and RTC.property_id = _opt.propertyId
+                                        group by RTC.chain_id, RTC.property_id, calendar.date, RTC.room_class_code, RTC.room_type_code, RTC.display_seq, RTC._room_count
+                                   ------ }} selectInventoryRoomStatistics_daily
+                    </sql>
+
+                <sql id="selectAvailabilityOccupancyStatistic_daily">
+                ------ selectAvailabilityOccupancyStatistic_daily {{
+                    <!-- call samples
+                        select * from (
+                                with _statistic_options as (
+                                       select #{selectDate}::DATE                   as startDate
+                                            , #{selectDate}::DATE + 30              as endDate
+                                            , string_to_array(#{roomClasses}, ',')  as roomClasses
+                                )
+                                <include refid="hpms.core.selectAvailabilityOccupancyStatistic_daily">
+                                    <property name="_includeDailySum" value="Y"/>
+                                </include>
+                       ) rs
+                       where rs.chain_id   = #{chainId}
+                               and rs.property_id = #{propertyId}
+                           <if test="type == '전체 룸 클래스 일자별 통계'">
+                               and rs._grouping_type = 'DAILY_SUM'
+                           </if>
+                           <if test="type == '선택된 룸 클래스들만의 일자별 합계'">
+                               and rs._grouping_type = 'SELECTED'
+                           </if>
+                           <if test="type == '룸 클래스별 일자별 통계'">
+                               and rs._grouping_type = 'ROOM_CLASS'
+                           </if>
+                           <if test="type == '룸 타입별 일자별 통계'">
+                               and rs._grouping_type = 'ROOM_TYPE'
+                           </if>
+
+                    -->
+                    select rs.*
+                        <!-- Sell Limits: inventory_rooms(room count - ooo) + overbooking -->
+                        , inventory_rooms + overbooking                                           as sell_limits
+                        <!-- House Availibilty: inventory_rooms - deduct_sum -->
+                        , inventory_rooms - deducted_sum                                          as house_availability
+                        <!-- Maximum Avaliability: sell limits - total deducted rooms -->
+                        , inventory_rooms - deducted_sum + overbooking                            as max_availability
+                        <!-- Minimum Avaliability: sell limits - total deducted rooms - total non deducted rooms -->
+                        , inventory_rooms - deducted_sum + overbooking - non_deducted_sum         as min_availability
+                        <!-- Minimum Occupancy: total deducted rooms -->
+                        , deducted_sum                                                            as min_occupancy
+                        <!-- Maximum Occupancy: total deducted rooms + total Non deducted rooms -->
+                        , deducted_sum + non_deducted_sum                                         as max_occupancy
+                    from (
+                        with inventory as (
+                            <include refid="hpms.core.selectInventoryRoomStatistics_daily" />
+                        )
+
+                        , bk as (
+                            <include refid="hpms.core.selectBookingDetailStatistics_daily" />
+                        )
+                    <if test='"${_includeOccupancyDetail}" == "Y"' >
+                        , bk_waiting as (
+                            <include refid="hpms.core.selectWaitingStatistics_daily"/>
+                        )
+                    </if>
+                        , bl as (
+                            <include refid="hpms.core.selectBlockStatistics_daily" />
+                        )
+
+                        , room_type_sum as (
+                                select rm.chain_id, rm.property_id, rm.date
+                                    , rm.room_class_code, rm.room_type_code, rm.display_seq
+                                    , 'ROOM_TYPE' as _grouping_type
+                                <if test='"${_ignoreOverbooking}" == "Y"' >
+                                    , 0                                                         as overbooking
+                                </if>
+                                <if test='"${_ignoreOverbooking}" != "Y"' >
+                                    , coalesce(ov_rt.overbooking_count, 0)                      as overbooking
+                                </if>
+                                    , coalesce(rm._room_count, 0)                               as physical_room
+                                    , coalesce(bk.deduct, 0)                                    as booking_deduct
+                                    , coalesce(bk.non_deduct, 0)                                as booking_non_deduct
+                                <if test='"${_includeOccupancyDetail}" == "Y"' >
+                                    , coalesce(bk.arrival, 0)                                   as arrival
+                                    , coalesce(bk.departure, 0)                                 as departure
+                                    , coalesce(bk.day_use, 0)                                   as day_use
+                                    , coalesce(bk_waiting.waiting, 0)                           as waiting
+                                    , coalesce(bk.arrival_person, 0)                            as arrival_person
+                                    , coalesce(bk.departure_person, 0)                          as departure_person
+                                    , coalesce(bk.day_use_person, 0)                            as day_use_person
+                                    , coalesce(bk_waiting.waiting_person, 0)                    as waiting_person
+                                    , coalesce(bk.adult_in_house, 0)                            as adult_in_house
+                                    , coalesce(bk.child_in_house, 0)                            as child_in_house
+                                </if>
+                                    , coalesce(rm.ooo, 0)                                       as ooo
+                                    , coalesce(rm.oos, 0)                                       as oos
+                                    , coalesce(bl.deduct, 0)                                    as block_deduct
+                                    , coalesce(bl.non_deduct, 0)                                as block_non_deduct
+                                    , coalesce(bl.deduct_pickup, 0)                             as block_deduct_pickup
+                                    , coalesce(bl.non_deduct_pickup, 0)                         as block_non_deduct_pickup
+                                    , coalesce(bl.deduct, 0)     - coalesce(bl.deduct_pickup, 0)     + coalesce(bk.deduct, 0)          as deducted_sum
+                                    , coalesce(bl.non_deduct, 0) - coalesce(bl.non_deduct_pickup, 0) + coalesce(bk.non_deduct, 0)      as non_deducted_sum
+                                    , rm._room_count - coalesce(rm.ooo, 0)                                                             as inventory_rooms
+
+                                from inventory rm
+                                    left join bl
+                                        on  rm.chain_id    = bl.chain_id
+                                        and rm.property_id = bl.property_id
+                                        and rm.room_type_code = bl.room_type_code
+                                        and rm.date = bl.block_date
+
+                                    left join bk
+                                        on  rm.chain_id    = bk.chain_id
+                                        and rm.property_id = bk.property_id
+                                        and rm.room_type_code = bk.room_type_code
+                                        and rm.date = bk.room_booking_date
+                                <if test='"${_includeOccupancyDetail}" == "Y"' >
+                                    left join bk_waiting
+                                        on  rm.chain_id    = bk_waiting.chain_id
+                                        and rm.property_id = bk_waiting.property_id
+                                        and rm.room_type_code = bk_waiting.room_type_code
+                                        and rm.date = bk_waiting.room_booking_date
+                                </if>
+                                <if test='"${_ignoreOverbooking}" != "Y"' >
+                                    left join lateral (
+                                        select * from hpms.hpbk_overbooking_list ov_rt
+                                        where  rm.chain_id = ov_rt.chain_id
+                                            and rm.property_id = ov_rt.property_id
+                                            and rm.date = ov_rt.sell_limit_room_date
+                                            and rm.room_type_code = ov_rt.room_type_code
+                                        limit 1
+                                    ) ov_rt on true
+                                </if>
+                                cross join _statistic_options _opt
+                                where rm.chain_id = _opt.chainId
+                                    and rm.property_id = _opt.propertyId
+                        )
+                        <if test='"${_includeRoomClassSum}" == "Y" or "${_includeDailySum}" == "Y"'>
+                        , room_class_sum as (
+                                select rs.chain_id, rs.property_id, rs.date
+                                    , rs.room_class_code                                            as room_class_code
+                                    , null::text                                                    as room_type_code
+                                    , null::numeric                                                 as display_seq
+                                    , 'ROOM_CLASS'                                                  as _grouping_type
+                                <if test='"${_ignoreOverbooking}" == "Y"' >
+                                    , 0                                                             as overbooking
+                                </if>
+                                <if test='"${_ignoreOverbooking}" != "Y"' >
+                                    , coalesce(max(ov_rc.overbooking_count), sum(rs.overbooking))   as overbooking
+                                </if>
+                                    , sum(physical_room)                                            as physical_room
+                                    , sum(booking_deduct)                                           as booking_deduct
+                                    , sum(booking_non_deduct)                                       as booking_non_deduct
+                                <if test='"${_includeOccupancyDetail}" == "Y"' >
+                                    , sum(arrival)                                                  as arrival
+                                    , sum(departure)                                                as departure
+                                    , sum(day_use)                                                  as day_use
+                                    , sum(waiting)                                                  as waiting
+                                    , sum(arrival_person)                                           as arrival_person
+                                    , sum(departure_person)                                         as departure_person
+                                    , sum(day_use_person)                                           as day_use_person
+                                    , sum(waiting_person)                                           as waiting_person
+                                    , sum(adult_in_house)                                           as adult_in_house
+                                    , sum(child_in_house)                                           as child_in_house
+                                </if>
+                                    , sum(ooo)                                                      as ooo
+                                    , sum(oos)                                                      as oos
+                                    , sum(block_deduct)                                             as block_deduct
+                                    , sum(block_non_deduct)                                         as block_non_deduct
+                                    , sum(block_deduct_pickup)                                      as block_deduct_pickup
+                                    , sum(block_non_deduct_pickup)                                  as block_non_deduct_pickup
+                                    , sum(deducted_sum)                                             as deducted_sum
+                                    , sum(non_deducted_sum)                                         as non_deducted_sum
+                                    , sum(inventory_rooms)                                          as inventory_rooms
+                                from room_type_sum rs
+                                    <if test='"${_ignoreOverbooking}" != "Y"' >
+                                    left join lateral (
+                                        select *
+                                        from hpms.hpbk_overbooking_list ov_rc
+                                        where  ov_rc.room_type_code is null
+                                            and rs.room_class_code = ov_rc.room_class_code
+                                            and rs.date = ov_rc.sell_limit_room_date
+                                        limit 1
+                                    ) ov_rc on true
+                                    </if>
+                                group by rs.chain_id, rs.property_id, rs.date , rs.room_class_code
+                        )
+                        </if>
+                        <if test='"${_includeDailySum}" == "Y"'>
+                        , daily_summary as (
+                                select rs.chain_id, rs.property_id, rs.date
+                                    , null::text                                                    as room_class_code
+                                    , null::text                                                    as room_type_code
+                                    , null::int                                                     as display_seq
+                                    , case when grouping(_selected) != 0 then 'DAILY_SUM'
+                                           when _selected   then 'SELECTED'
+                                                            else 'NOT_SELECTED' end                 as _grouping_type
+                                    , sum(overbooking)                                              as overbooking
+                                    , sum(physical_room)                                            as physical_room
+                                    , sum(booking_deduct)                                           as booking_deduct
+                                    , sum(booking_non_deduct)                                       as booking_non_deduct
+                                <if test='"${_includeOccupancyDetail}" == "Y"' >
+                                    , sum(arrival)                                                  as arrival
+                                    , sum(departure)                                                as departure
+                                    , sum(day_use)                                                  as day_use
+                                    , sum(waiting)                                                  as waiting
+                                    , sum(arrival_person)                                           as arrival_person
+                                    , sum(departure_person)                                         as departure_person
+                                    , sum(day_use_person)                                           as day_use_person
+                                    , sum(waiting_person)                                           as waiting_person
+                                    , sum(adult_in_house)                                           as adult_in_house
+                                    , sum(child_in_house)                                           as child_in_house
+                                </if>
+                                    , sum(ooo)                                                      as ooo
+                                    , sum(oos)                                                      as oos
+                                    , sum(block_deduct)                                             as block_deduct
+                                    , sum(block_non_deduct)                                         as block_non_deduct
+                                    , sum(block_deduct_pickup)                                      as block_deduct_pickup
+                                    , sum(block_non_deduct_pickup)                                  as block_non_deduct_pickup
+                                    , sum(deducted_sum)                                             as deducted_sum
+                                    , sum(non_deducted_sum)                                         as non_deducted_sum
+                                    , sum(inventory_rooms)                                          as inventory_rooms
+                                from room_class_sum rs
+                                    cross join _statistic_options _opt
+                                    left join (select true as _selected) sct
+                                        on array_length(_opt.roomClasses, 1) is null
+                                                or rs.room_class_code = any(_opt.roomClasses)
+                                group by grouping sets (
+                                        (rs.chain_id, rs.property_id, date, _selected)
+                                    ,   (rs.chain_id, rs.property_id, date)
+                                )
+                        )
+                        </if>
+                        <if test='"${_includeRoomTypeSum}" != "N"'>
+                        select * from room_type_sum
+                        </if>
+                        <if test='"${_includeRoomClassSum}" == "Y" or ("${_includeRoomClassSum}" != "N" and "${_includeDailySum}" == "Y")'>
+                        union all
+                        select * from room_class_sum
+                        </if>
+                        <if test='"${_includeDailySum}" == "Y"'>
+                        union all
+                        select * from daily_summary
+                        </if>
+                    ) rs
+                ------ }} selectAvailabilityOccupancyStatistic_daily
+            </sql>
+
+
+
+</mapper>

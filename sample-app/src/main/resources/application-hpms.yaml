@@ -1,0 +1,22 @@
+
+database: postgresql
+
+spring:
+  sql.init:
+    mode: never
+#    schema-locations: classpath*:db/${database}/bookstore-schema.sql
+#    data-locations: classpath*:db/${database}/bookstore-data.sql
+  session:
+    store-type: none  # Session 저장 유형 StoreType 참조.
+    timeout: 3600     # Session timeout.
+
+
+  datasource:
+    driverClassName: net.sf.log4jdbc.sql.jdbcapi.DriverSpy
+#    url: jdbc:log4jdbc:postgresql://gmms-dev-aur-postgres-stella.cluster-ro-c1uy828kch9n.ap-northeast-2.rds.amazonaws.com:5432/hpss?charSet=UTF-8&prepareThreshold=1&sslmode=disable&currentSchema=fwcm&socketTimeout=180000&serverTimezone=UTC
+#    username: dev_app
+#    password: 'hpssapp!@#'
+    url: jdbc:log4jdbc:postgresql://hsp-004-stg-aur-postgres-stella.cluster-cxkkmiguye09.ap-northeast-2.rds.amazonaws.com:5432/hpss?charSet=UTF-8&prepareThreshold=1&sslmode=disable&currentSchema=fwcm&socketTimeout=180000&serverTimezone=UTC
+    username: stg_app
+    password: 'stgapp!@#'
+
